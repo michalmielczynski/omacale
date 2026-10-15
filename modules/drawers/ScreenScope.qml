@@ -375,6 +375,17 @@ Scope {
     }
   }
 
+  // Live captions on the bottom edge, drawn by Omacale (modules/captions), fed by
+  // the caption socket. A window of its own, like the clock and the visualiser.
+  LazyLoader {
+    active: Config.o.captions.enabled
+    Captions {
+      screen: scope.screen
+      barPos: scope.barPos
+      barZone: scope.zoneFor(scope.barPos)
+    }
+  }
+
   // The lock card drawn above the session lock, and its closing after
   // Omarchy has dropped the lock (LockFx, LockUnlockFx). Up from the lock
   // until the closing has played.

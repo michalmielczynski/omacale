@@ -93,6 +93,9 @@ var values = {
   // Caelestia backgroundconfig.hpp (the wallpaper itself stays Omarchy's).
   // Settings › Display › Cursor: 0 / "auto" leave Omarchy's (or the user's) own.
   display: { cursorSize: 0, zeroScaling: "auto", linkBrightness: false, quickOnConnect: false, nightTemp: 4000, nightSchedule: "off", nightFrom: "20:00", nightTo: "07:00" },
+  // Live captions on the bottom edge, drawn by Omacale (modules/captions):
+  // reads the caption socket the ASR pipeline already writes to.
+  captions: { enabled: false, height: 52, reserve: true, fontScale: 1.0 },
   background: {
     excludedScreens: [],
     desktopClock: {

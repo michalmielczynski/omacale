@@ -360,6 +360,12 @@ QtObject {
         property string nightFrom: "20:00"
         property string nightTo: "07:00"
       }
+      property JsonObject captions: JsonObject {
+        property bool enabled: false
+        property int height: 52
+        property bool reserve: true
+        property real fontScale: 1
+      }
       property JsonObject background: JsonObject {
         // Screens without the desktop clock and visualiser.
         property list<string> excludedScreens: []

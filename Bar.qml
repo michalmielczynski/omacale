@@ -766,7 +766,9 @@ Item {
       'hl.layer_rule({ match = { namespace = "^omacale-clock$" }, blur = ' + (clockBlur ? "true" : "false") +
       ', ignore_alpha = ' + clockIgnoreAlpha.toFixed(2) + ' }); ' +
       'hl.layer_rule({ match = { namespace = "^omacale-visualiser$" }, blur = ' + (visBlur ? "true" : "false") +
-      ', ignore_alpha = 0.5 })'])
+      ', ignore_alpha = 0.5 }); ' +
+      // The captions strip blurs the wallpaper behind it, like the clock's plate.
+      'hl.layer_rule({ match = { namespace = "^omacale-captions$" }, blur = true, ignore_alpha = 0.35 })'])
   }
   // The lock card is drawn by an overlay Hyprland puts above the session
   // lock (modules/lock/LockUnlockFx.qml): `above_lock = 2` draws it over the
