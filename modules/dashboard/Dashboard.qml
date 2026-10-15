@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell.Widgets
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Mpris
 import "../.."
 
@@ -304,6 +305,17 @@ Item {
   // User card: logo gem, pill profile picture, uptime clamshell, WM bubble.
   component UserCard: Item {
     id: uc
+    // A logo the user can replace: ~/.config/omacale/logo.png wins over
+    // Omarchy's package icon; delete the file to go back to it.
+    readonly property string userLogoPath: Quickshell.env("HOME") + "/.config/omacale/logo.png"
+    property bool userLogoExists: false
+    FileView {
+      path: uc.userLogoPath
+      watchChanges: true
+      printErrors: false
+      onLoaded: uc.userLogoExists = true
+      onLoadFailed: uc.userLogoExists = false
+    }
     MShape {
       id: logoShape
       x: Tk.padding.extraSmall
@@ -313,7 +325,7 @@ Item {
       ColouredIcon {
         anchors.centerIn: parent
         implicitSize: Tk.sizes.logoSize
-        source: "file://" + root.host.omarchyPath + "/icon.png"
+        source: uc.userLogoExists ? "file://" + uc.userLogoPath : "file://" + root.host.omarchyPath + "/icon.png"
         colour: Colours.m3onPrimaryContainer
       }
     }
