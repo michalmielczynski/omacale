@@ -505,6 +505,9 @@ Item {
   function showTooltip(target, text) {
     clearTooltip()
     if (!target || !text) return
+    // A hosted widget whose popout Omacale draws (see openPluginPopout) needs no
+    // tooltip: the card already says more, and the two would overlap.
+    if ("popoutContent" in target) return
     var req = ++tooltipRequest
     pendingTooltipTarget = target
     pendingTooltipText = text

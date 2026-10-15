@@ -47,6 +47,35 @@ Item {
   readonly property real ox: { let x = pluginsEntry.x, p = pluginsEntry.parent; while (p && p !== bar) { x += p.x; p = p.parent } return x }
   readonly property real oy: { let y = pluginsEntry.y, p = pluginsEntry.parent; while (p && p !== bar) { y += p.y; p = p.parent } return y }
 
+  // A hosted widget that brings its own popout content (popoutContent) opens
+  // Omacale's popout on hover, like the status icons: the answer names the
+  // popout and where it hangs, and the bar draws the card (see PopoutContent's
+  // "plugin" page; Bar.openPluginPopout is the click path).
+  function popoutSlots() {
+    const out = []
+    for (let i = 0; i < pluginRep.count; i++) {
+      const s = pluginRep.itemAt(i)
+      if (s && s.shown && s.activeItem && "popoutContent" in s.activeItem) out.push(s)
+    }
+    return out
+  }
+  function popoutAt(a) {
+    // The slots live in pluginCol (the pill's Grid), so the point is mapped
+    // there, not into the pill: their y is in the Grid's frame.
+    const p = bar.pointAlong(bar.pointOn(pluginCol, a))
+    for (const s of popoutSlots()) {
+      if (p >= bar.apos(s) - 3 && p <= bar.apos(s) + bar.alen(s) + 3) {
+        bar.host.requestPopout(s.activeItem)
+        return { name: s.activeItem.popout || "plugin", center: bar.centreOf(s) }
+      }
+    }
+    return null
+  }
+  function popoutCenterFor(name) {
+    for (const s of popoutSlots())
+      if ((s.activeItem.popout || "plugin") === name) return bar.centreOf(s)
+    return undefined
+  }
   Rectangle {
     id: pill
     // Drawn on the bar's overlay, not in the layout: see the header.
