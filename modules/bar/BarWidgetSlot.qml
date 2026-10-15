@@ -457,6 +457,28 @@ Item {
     restoreMode: Binding.RestoreNone
   }
 
+  // ---- plugin popouts: grow and fade like Omacale's own ----
+  // The hosted panel is another surface, so a Behavior cannot be attached from
+  // here; these animations drive the card's own scale/opacity instead.
+  function animateCompatCard(open) {
+    if (!compatibilityCard) return
+    compatGrow.stop(); compatShrink.stop(); compatFadeIn.stop(); compatFadeOut.stop()
+    compatGrow.target = compatibilityCard
+    compatShrink.target = compatibilityCard
+    compatFadeIn.target = compatibilityCard
+    compatFadeOut.target = compatibilityCard
+    if (open) { compatFadeIn.start(); compatGrow.start() }
+    else { compatFadeOut.start(); compatShrink.start() }
+  }
+  Connections {
+    target: root
+    function onCardSurfaceActiveChanged() { root.animateCompatCard(root.cardSurfaceActive) }
+  }
+  NumberAnimation { id: compatGrow; property: "scale"; from: 0.92; to: 1; duration: 260; easing.type: Easing.OutCubic }
+  NumberAnimation { id: compatShrink; property: "scale"; to: 0.92; duration: 150; easing.type: Easing.InCubic }
+  NumberAnimation { id: compatFadeIn; property: "opacity"; from: 0; to: 1; duration: 200; easing.type: Easing.OutCubic }
+  NumberAnimation { id: compatFadeOut; property: "opacity"; to: 0; duration: 140; easing.type: Easing.InCubic }
+
   // Omarchy-unit stage, scaled (and for a label, turned) about its centre.
   Item {
     id: stage
