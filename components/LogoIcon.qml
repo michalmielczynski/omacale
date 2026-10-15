@@ -21,6 +21,13 @@ Item {
 
   readonly property var opt: Logos.byId(value)
   readonly property int px: Math.max(1, Math.round(size))
+  // kind "letter": a Tinted rounded box with a contrasting letter, drawn
+  // natively (the old melon.menu bar widget this restores used the bar font).
+  readonly property bool isLetter: opt.kind === "letter"
+  readonly property color letterColour: {
+    const c = root.colour
+    return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) > 0.55 ? Colours.m3surface : Colours.m3onSurface
+  }
   // Same area for every logo, not the same longest side: a wide or tall
   // logo fitted into the square would look smaller than a square one. So it
   // grows by sqrt(aspect) along its long side and shrinks the same along the
@@ -72,6 +79,7 @@ Item {
 
   readonly property string svg: {
     const o = opt
+    if (o.kind === "letter") return ""
     if (o.kind === "grid") {
       return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + px + ' ' + px + '">'
         + '<path ' + fill(colour) + ' d="' + gridPath(o.grid, px) + '"/></svg>'
@@ -85,12 +93,35 @@ Item {
   Image {
     // Whole-pixel size and position: a half-pixel offset is what makes small
     // icons look soft.
+    visible: !root.isLetter
     x: Math.round((root.width - width) / 2)
     y: Math.round((root.height - height) / 2)
     width: root.drawPx
     height: root.drawPx
     sourceSize: Qt.size(root.drawPx, root.drawPx)
     smooth: true
-    source: "data:image/svg+xml;utf8," + encodeURIComponent(root.svg)
+    source: root.isLetter ? "" : "data:image/svg+xml;utf8," + encodeURIComponent(root.svg)
+  }
+
+  // kind "letter": the box and its letter, in the same slot as any other logo.
+  Rectangle {
+    visible: root.isLetter
+    anchors.centerIn: parent
+    width: root.px
+    height: root.px
+    radius: Math.max(3, Math.round(root.px * 0.24))
+    color: root.colour
+  }
+  Text {
+    visible: root.isLetter
+    anchors.centerIn: parent
+    text: root.opt.letter || "M"
+    color: root.letterColour
+    font.family: Tk.sans
+    font.pixelSize: Math.round(root.px * 0.62)
+    font.bold: true
+    renderType: Text.NativeRendering
+    horizontalAlignment: Text.AlignHCenter
+    verticalAlignment: Text.AlignVCenter
   }
 }
