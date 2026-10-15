@@ -149,6 +149,10 @@ QtObject {
           // Widgets left out of the bar altogether (the plugin keeps running;
           // only its bar widget isn't made), like tray.hiddenIcons.
           property list<string> hidden: []
+          // Widgets drawn on the bar without a pill of their own: no bubble and
+          // no padding, so a mark like melon.eye's sits straight in the bar and
+          // its cell is only as long as the widget itself.
+          property list<string> bare: []
         }
         // Which items sit in the bar's start, center and end sections, in
         // order (core/BarLayout.js). Empty means the default order, so a

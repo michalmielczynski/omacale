@@ -22,6 +22,8 @@ Item {
   // The host's registry entry for the widget; null while it isn't one.
   readonly property var hostEntry: bar.host.widgetEntry(pluginId)
   readonly property bool hidden: bar.cfg.plugins.hidden.indexOf(pluginId) >= 0
+  // Drawn without its own pill (bar.plugins.bare): no bubble, no padding.
+  readonly property bool bare: (bar.cfg.plugins.bare || []).indexOf(pluginId) >= 0
   readonly property Item slot: slotLoader.item
   readonly property bool shown: !hidden && !!slot && slot.shown
   // Next to status icons or another widget, they share one pill (BarContent's
@@ -46,8 +48,8 @@ Item {
     id: pill
     parent: singlePluginEntry.bar.overlay
     // The padding at each end of the pill, along the bar, as the plugin pill's.
-    property real padStart: singlePluginEntry.joinBefore ? 0 : Tk.padding.medium
-    property real padEnd: singlePluginEntry.joinAfter ? 0 : Tk.padding.medium
+    property real padStart: singlePluginEntry.bare || singlePluginEntry.joinBefore ? 0 : Tk.padding.medium
+    property real padEnd: singlePluginEntry.bare || singlePluginEntry.joinAfter ? 0 : Tk.padding.medium
     // Joining and parting glide (a Behavior needs a plain property).
     Behavior on padStart { Anim {} }
     Behavior on padEnd { Anim {} }
@@ -63,7 +65,7 @@ Item {
     width: singlePluginEntry.bar.vertical ? implicitWidth : implicitWidth * singlePluginEntry.fold
     height: singlePluginEntry.bar.vertical ? implicitHeight * singlePluginEntry.fold : implicitHeight
     radius: (singlePluginEntry.bar.vertical ? width : height) / 2
-    color: singlePluginEntry.joinBefore || singlePluginEntry.joinAfter ? "transparent" : Colours.m3surfaceContainer
+    color: singlePluginEntry.bare || singlePluginEntry.joinBefore || singlePluginEntry.joinAfter ? "transparent" : Colours.m3surfaceContainer
     clip: true
 
     Loader {
