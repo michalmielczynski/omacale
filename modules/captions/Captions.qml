@@ -124,8 +124,12 @@ Item {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     anchors { bottom: true; left: true; right: true }
     margins {
-      left: root.barPos === "left" ? Math.round(root.barZone) : 0
-      right: root.barPos === "right" ? Math.round(root.barZone) : 0
+      // The compositor places a surface after the bar's left reserve and after the
+      // frame's border reserve; the strip should reach the screen edges instead
+      // (the same place the GTK bar sat), hence the negative margins.
+      left: root.barPos === "left" ? -Math.round(root.barZone) : 0
+      right: root.barPos === "right" ? -Math.round(root.barZone) : -Math.round(Tk.border)
+      bottom: -Math.round(Tk.border)
     }
     // No input at all: clicks go to the window underneath, as the GTK strip does.
     mask: Region {}
