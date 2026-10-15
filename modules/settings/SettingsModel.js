@@ -473,6 +473,7 @@ var subpages = {
     rows: [
       { type: "section", text: "Visible icons" },
       { type: "toggle", key: "bar.status.lockStatus", label: "Caps / num lock", subtext: "Only shown while a lock key is on" },
+      { type: "toggle", key: "bar.status.numLock", when: { key: "bar.status.lockStatus", value: true }, label: "Num lock", subtext: "Show num lock too; turn off on a machine without a keypad" },
       { type: "toggle", key: "bar.status.audio", label: "Audio" },
       { type: "toggle", key: "bar.status.microphone", label: "Microphone" },
       { type: "toggle", key: "bar.status.microphoneInUseOnly", label: "Microphone only while recording", subtext: "Hide it until an app opens the microphone" },

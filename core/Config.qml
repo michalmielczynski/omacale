@@ -193,6 +193,8 @@ QtObject {
         }
         property JsonObject status: JsonObject {
           property bool lockStatus: true
+          // Hide num lock when the machine has no keypad (Settings > Bar).
+          property bool numLock: true
           property bool audio: false
           property bool microphone: false
           property bool network: true

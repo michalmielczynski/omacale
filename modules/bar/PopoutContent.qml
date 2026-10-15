@@ -950,7 +950,7 @@ Item {
     ColumnLayout {
       spacing: Tk.spacing.small
       MText { text: root.host.capsLock ? "Caps lock enabled" : "Caps lock disabled" }
-      MText { text: root.host.numLock ? "Num lock enabled" : "Num lock disabled" }
+      MText { visible: Config.o.bar.status.numLock; text: root.host.numLock ? "Num lock enabled" : "Num lock disabled" }
     }
   }
 
