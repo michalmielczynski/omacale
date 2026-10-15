@@ -153,6 +153,11 @@ QtObject {
           // no padding, so a mark like melon.eye's sits straight in the bar and
           // its cell is only as long as the widget itself.
           property list<string> bare: []
+          // Widgets scaled on the bar, "id:factor" (e.g. "melon.eye:1.9").
+          // Omacale normalises a hosted widget to its status-icon size; this
+          // multiplies the mark and the cell it takes, so a widget can read at
+          // the size of the bar's own circles (the workspace shapes).
+          property list<string> scale: []
         }
         // Which items sit in the bar's start, center and end sections, in
         // order (core/BarLayout.js). Empty means the default order, so a

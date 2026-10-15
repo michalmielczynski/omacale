@@ -38,6 +38,8 @@ Item {
   // The size of one status icon (an MIcon at the default size) along the bar,
   // from the pill.
   property real cellLen: Tk.body.small * 2
+  // bar.plugins.scale: how much bigger than a status icon this widget reads.
+  property real extraScale: 1
 
   readonly property string moduleName: host.entryId(entry)
   readonly property var moduleSettings: host.entrySettings(entry)
@@ -59,7 +61,7 @@ Item {
   readonly property string displayName: moduleMetadata && moduleMetadata.displayName
     ? String(moduleMetadata.displayName) : moduleName
 
-  readonly property real iconScale: host.pluginIconScale
+  readonly property real iconScale: host.pluginIconScale * extraScale
   readonly property real logicalBreadth: host.pluginBarSize
   readonly property real logicalCell: cellLen / iconScale
   // Longest label that is still turned (in a column) rather than replaced, in
@@ -135,12 +137,12 @@ Item {
   readonly property real stageWidth: {
     if (shape !== "icon") return vertical ? naturalWidth : Math.max(1, naturalWidth)
     if (vertical) return logicalBreadth
-    return naturalWidth > Style.bar.iconSlot + 1 ? naturalWidth : logicalCell
+    return naturalWidth > Style.bar.iconSlot + 1 ? naturalWidth : Math.max(logicalCell, naturalWidth)
   }
   readonly property real stageHeight: {
     if (shape !== "icon") return Math.max(1, naturalHeight)
     if (!vertical) return logicalBreadth
-    return naturalHeight > Style.bar.iconSlot + 1 ? naturalHeight : logicalCell
+    return naturalHeight > Style.bar.iconSlot + 1 ? naturalHeight : Math.max(logicalCell, naturalHeight)
   }
   // How much of the bar the slot takes, along it: the widget's whole length,
   // or, as an idle stack, the stack's on the way to it.

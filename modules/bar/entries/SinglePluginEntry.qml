@@ -24,6 +24,18 @@ Item {
   readonly property bool hidden: bar.cfg.plugins.hidden.indexOf(pluginId) >= 0
   // Drawn without its own pill (bar.plugins.bare): no bubble, no padding.
   readonly property bool bare: (bar.cfg.plugins.bare || []).indexOf(pluginId) >= 0
+  // bar.plugins.scale: "id:factor" for this widget; 1 when it isn't listed.
+  readonly property real widgetScale: {
+    const list = bar.cfg.plugins.scale || []
+    for (let i = 0; i < list.length; i++) {
+      const e = String(list[i]), at = e.lastIndexOf(":")
+      if (at > 0 && e.slice(0, at) === pluginId) {
+        const f = parseFloat(e.slice(at + 1))
+        if (isFinite(f) && f > 0) return f
+      }
+    }
+    return 1
+  }
   readonly property Item slot: slotLoader.item
   readonly property bool shown: !hidden && !!slot && slot.shown
   // Next to status icons or another widget, they share one pill (BarContent's
@@ -81,6 +93,7 @@ Item {
         vertical: singlePluginEntry.bar.vertical
         edge: singlePluginEntry.bar.edge
         cellLen: singlePluginEntry.bar.cellLen
+        extraScale: singlePluginEntry.widgetScale
         pinned: true
         collapsed: false
         revealHeld: singlePluginEntry.revealHeld
