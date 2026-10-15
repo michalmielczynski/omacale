@@ -38,8 +38,18 @@ Item {
   // while the popout resizes around them.
   readonly property var pages: ({
     network: network, wirelesspassword: wirelesspassword, bluetooth: bluetooth, battery: battery, audio: audio,
-    kblayout: kblayout, lockstatus: lockstatus, update: update, traymenu: traymenu, activewindow: activewindow, winfo: winfo
+    kblayout: kblayout, lockstatus: lockstatus, update: update, traymenu: traymenu, activewindow: activewindow, winfo: winfo,
+    plugin: plugin
   })
+  // A hosted widget's own content, drawn in this card (Bar.openPluginPopout).
+  Component {
+    id: plugin
+    Loader {
+      sourceComponent: root.host && root.host.activePopout && root.host.activePopout.popoutContent
+        ? root.host.activePopout.popoutContent : null
+    }
+  }
+
   property Loader activeLoader: loaderA
   readonly property Item current: activeLoader ? activeLoader.item : null
   // The loader's implicit size, not the page's: like Caelestia's Popout

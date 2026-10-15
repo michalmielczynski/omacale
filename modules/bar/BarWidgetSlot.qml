@@ -625,9 +625,16 @@ Item {
         if (root.activeItem.opened) {
           if (root.host && typeof root.host.requestPopout === "function")
             root.host.requestPopout(root.activeItem)
+          // Its own popout content: Omacale draws the card (Bar.openPluginPopout).
+          if (root.host && typeof root.host.openPluginPopout === "function"
+              && "popoutContent" in root.activeItem)
+            root.host.openPluginPopout(root.activeItem)
         } else {
           if (root.host && typeof root.host.releasePopout === "function")
             root.host.releasePopout(root.activeItem)
+          if (root.host && typeof root.host.closePluginPopout === "function"
+              && "popoutContent" in root.activeItem)
+            root.host.closePluginPopout(root.activeItem)
         }
       }
     }

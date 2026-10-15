@@ -291,6 +291,19 @@ Item {
     return scopes.length ? scopes[0] : null
   }
 
+  // A hosted widget that names its popout ("plugin") and brings the content
+  // (popoutContent) gets Omacale's own popout surface: the same card, glass and
+  // animation as the status popouts, instead of a window of its own.
+  function openPluginPopout(owner) {
+    if (!owner || !owner.popout) return
+    const s = scopeFor(slotScreen(owner) || barScreen())
+    if (s) s.openPopoutKeys(owner.popout)
+  }
+  function closePluginPopout(owner) {
+    const name = owner && owner.popout ? owner.popout : ""
+    for (const s of scopes) if (name === "" || s.popout === name) s.popout = ""
+  }
+
   // Omarchy id -> the Omacale popout for it. Not mapped, so their hotkeys do
   // nothing: omarchy.monitor (no Omacale display panel yet), and the clock
   // and weather (SUPER+CTRL+ALT+D) -- the dashboard has its own binds.
