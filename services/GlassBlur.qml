@@ -61,9 +61,26 @@ QtObject {
       printf 'enabled = %s, size = %d, passes = %d, noise = %s, vibrancy = %s' "$e" "$s" "$p" "$n" "$v" > "$f.tmp" && mv "$f.tmp" "$f"
     }
     tune() { hyprctl eval "hl.config({ decoration = { blur = { enabled = true, size = $1, passes = $2, noise = 0.0117, vibrancy = 0.1696 } } })" >/dev/null; }
+    apply() { # $1 size, $2 passes
+      tune "$1" "$2"
+      [ "$(get enabled)" = true ] && [ "$(get size)" = "$1" ] && [ "$(get passes)" = "$2" ]
+    }
     case "$1" in
-      on) [ -f "$f" ] || keep || exit 1; tune "$2" "$3" ;;
-      reload) keep || exit 1; tune "$2" "$3" ;;
+      on|reload)
+        # A fresh session is the hard case: the shell can start before
+        # Hyprland has read its config, and then getoption answers late or
+        # hl.config is not there yet. The tune used to be dropped silently
+        # (no blur until Settings were touched, which runs this again); it now
+        # verifies itself and tries again for ~30 s.
+        [ "$1" = reload ] && rm -f "$f"
+        i=0
+        while [ $i -lt 30 ]; do
+          i=$((i + 1))
+          [ -f "$f" ] || { keep || { sleep 1; continue; }; }
+          apply "$2" "$3" && exit 0
+          sleep 1
+        done
+        exit 1 ;;
       off)
         [ -f "$f" ] || exit 0
         # Only numbers and booleans go back to Hyprland.
