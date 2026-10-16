@@ -160,7 +160,10 @@ Item {
 
       Grid {
         id: pluginCol
-        readonly property real gapPx: Tk.spacing.medium / 2
+        // No gap of our own: each hosted widget already fills a square cell of
+        // the bar's breadth, so the icons read as far apart as the status pill's
+        // only when the grid stops adding space between those cells.
+        readonly property real gapPx: 0
         width: bar.vertical ? parent.width : implicitWidth
         height: bar.vertical ? implicitHeight : parent.height
         columns: bar.vertical ? 1 : 1000
