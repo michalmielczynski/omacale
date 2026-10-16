@@ -446,18 +446,30 @@ Item {
     }
   }
 
-  // Calendar with a sunny "today" marker; wheel changes month.
+  // Calendar with a sunny "today" marker and a day the user picks: a click on
+  // any cell -- the neighbours' too -- moves the agenda under the grid onto
+  // that day, and the wheel and the arrows change month.
   component Calendar: ColumnLayout {
     id: calRoot
     property date shown: new Date(clock.date.getFullYear(), clock.date.getMonth(), 1)
     readonly property int month: shown.getMonth()
     readonly property int year: shown.getFullYear()
     readonly property bool isCurrent: month === clock.date.getMonth() && year === clock.date.getFullYear()
-    // Today's events, from the calendar Omarchy syncs (services/CalendarService,
+    // The day the agenda under the grid describes: today when the card opens,
+    // then whatever cell was picked. A Date set imperatively rather than a
+    // binding on the clock, so the every-second tick cannot take the pick back.
+    property date selectedDate: new Date()
+    // The events, from the calendar Omarchy syncs (services/CalendarService,
     // the same file the stock calendar widget reads). The key changes at
     // midnight only, so the rows are not rebuilt with the clock's every second.
     readonly property string todayKey: CalendarService.key(clock.date)
-    readonly property var todayEvents: CalendarService.eventsOnKey(todayKey)
+    readonly property string selectedKey: CalendarService.key(selectedDate)
+    readonly property var selectedEvents: CalendarService.eventsOnKey(selectedKey)
+    readonly property bool selectedToday: selectedKey === todayKey
+    // "Today · 16 Oct" while the pick is today, "Fri 17 Oct" otherwise: the
+    // grid's own locale and its short month, so the two read alike.
+    readonly property string selectedLabel: (selectedToday ? "Today · " : "")
+      + Qt.formatDate(selectedDate, selectedToday ? "d MMM" : "ddd d MMM")
     // The agenda under the grid: three rows and an ellipsis, the time in a
     // column of its own so the titles line up ("All Day" fits it too).
     readonly property int agendaMax: 3
@@ -469,7 +481,17 @@ Item {
     readonly property int animDirection: target > shown ? -1 : 1
     property real animTranslate
     property real animOpacity: 1
-    function step(n) { shown = new Date(target.getFullYear(), target.getMonth() + n, 1) }
+    // Midnight today, so picks and the shown month compare as whole days.
+    function today() { return new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate()) }
+    function select(date) { calRoot.selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()) }
+    // Another month: its first day -- or today, when that month is this one.
+    function step(n) {
+      const next = new Date(target.getFullYear(), target.getMonth() + n, 1)
+      shown = next
+      select(next.getFullYear() === clock.date.getFullYear() && next.getMonth() === clock.date.getMonth() ? today() : next)
+    }
+    // Back to this month, the way the month label and a middle-click do it.
+    function back() { shown = new Date(clock.date.getFullYear(), clock.date.getMonth(), 1); select(today()) }
     onShownChanged: target = shown
     Anim { id: trOutAnim; running: false; target: calRoot; property: "animTranslate"; to: Tk.padding.extraLarge * calRoot.animDirection; type: "fastSpatial" }
     Behavior on shown {
@@ -486,7 +508,7 @@ Item {
         }
       }
     }
-    Connections { target: root; function onActiveChanged() { if (root.active) calRoot.shown = new Date(clock.date.getFullYear(), clock.date.getMonth(), 1) } }
+    Connections { target: root; function onActiveChanged() { if (root.active) calRoot.back() } }
 
     RowLayout {
       Layout.fillWidth: true
@@ -502,7 +524,7 @@ Item {
           color: Colours.m3primary
           radius: pressed ? Tk.rounding.small : height / 2
           disabled: calRoot.isCurrent
-          onClicked: calRoot.shown = new Date(clock.date.getFullYear(), clock.date.getMonth(), 1)
+          onClicked: calRoot.back()
           Behavior on radius { Anim { type: "effects" } }
         }
         MText {
@@ -552,36 +574,62 @@ Item {
       readonly property real cellW: (width - columnSpacing * 6) / 7
       readonly property int offset: (calRoot.shown.getDay() - daysRow.first + 7) % 7
       readonly property int days: new Date(calRoot.year, calRoot.month + 1, 0).getDate()
-      readonly property int prevDays: new Date(calRoot.year, calRoot.month, 0).getDate()
-      // The shown month's days that have events, as a set: one walk over the
-      // month rather than a lookup per cell, and one more when the file is
-      // reread (no polling anywhere).
-      readonly property var eventDays: {
+      // The days this 42-cell grid can show, as a set of "yyyy-MM-dd" keys:
+      // one walk over the cells rather than a lookup per cell, and one more
+      // when the file is reread (no polling anywhere). The neighbours' days
+      // are in it too, so a cell dots exactly what the agenda will show once
+      // it is picked.
+      readonly property var eventCells: {
         const days = {}
-        const d = new Date(calRoot.year, calRoot.month, 1)
-        for (let i = 0; i < grid.days; i++) {
-          d.setDate(i + 1)
-          if (CalendarService.count(d) > 0) days[i + 1] = true
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(calRoot.year, calRoot.month, i - grid.offset + 1)
+          if (CalendarService.count(d) > 0) days[CalendarService.key(d)] = true
         }
         return days
       }
       Repeater {
         model: 42
         Item {
+          id: cell
           required property int index
           readonly property int day: index - grid.offset + 1
           readonly property bool inMonth: day >= 1 && day <= grid.days
-          readonly property int shownDay: inMonth ? day : day < 1 ? grid.prevDays + day : day - grid.days
+          // The cell's own date: Date rolls the days before the 1st and past
+          // the last into the months beside -- exactly where the borrowed
+          // numbers come from, and those cells pick those days.
+          readonly property date cellDate: new Date(calRoot.year, calRoot.month, day)
+          readonly property string key: CalendarService.key(cellDate)
           readonly property bool today: inMonth && calRoot.isCurrent && day === clock.date.getDate()
-          // Only this month's own days are dotted; the leading and trailing
-          // cells borrow the neighbours' numbers, not their events.
-          readonly property bool hasEvent: inMonth && grid.eventDays[shownDay] === true
+          readonly property bool selected: cell.key === calRoot.selectedKey
+          readonly property bool hasEvent: grid.eventCells[cell.key] === true
           readonly property int weekday: (daysRow.first + index) % 7
           readonly property bool weekend: weekday === 0 || weekday === 6
+          // What the keyboard cursor knows the cell by (NavCursor.navKey).
+          readonly property string navKey: "calendar-" + cell.key
           width: grid.cellW
           height: dayText.implicitHeight + Tk.padding.small
+          // A click anywhere in the cell picks the day; the cursor stops on
+          // the same layer, where Enter and Space do what the click does.
+          // Drawn first, so the veil tints the cell rather than the digit.
+          StateLayer {
+            anchors.fill: parent
+            radius: Tk.rounding.small
+            color: Colours.m3primary
+            onClicked: calRoot.select(cell.cellDate)
+          }
+          // The pick: a ring around the cell, in the sunny marker's own colour
+          // but as an outline, so a picked today still reads as two things at
+          // once -- and nothing like the 4px event dot in the row's gap.
+          Rectangle {
+            anchors.fill: parent
+            visible: cell.selected
+            radius: Tk.rounding.small
+            color: "transparent"
+            border.width: Tk.px(2)
+            border.color: Colours.m3primary
+          }
           MShape {
-            visible: parent.today
+            visible: cell.today
             anchors.centerIn: parent
             // Caelestia sets it at today.y - extraSmall - 1: a pixel above centre.
             anchors.verticalCenterOffset: -1
@@ -592,36 +640,43 @@ Item {
           MText {
             id: dayText
             anchors.centerIn: parent
-            text: parent.shownDay
-            color: parent.today ? Colours.m3onPrimary : parent.weekend ? Colours.m3tertiary : Colours.m3onSurfaceVariant
-            opacity: parent.inMonth ? 1 : 0.4
+            text: cell.cellDate.getDate()
+            color: cell.today ? Colours.m3onPrimary : cell.weekend ? Colours.m3tertiary : Colours.m3onSurfaceVariant
+            opacity: cell.inMonth ? 1 : 0.4
           }
           // A day with events, dotted: 4px, in the row's own gap so no cell
           // grows and the grid keeps its 42-cell height. It sits on the sunny
-          // today marker, where it flips to onPrimary to stay visible.
+          // today marker, where it flips to onPrimary to stay visible, and
+          // next month's day carries the number's own dimming.
           Rectangle {
-            visible: parent.hasEvent
+            visible: cell.hasEvent
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: -Tk.px(2)
             width: Tk.px(4); height: width; radius: width / 2
-            color: parent.today ? Colours.m3onPrimary : Colours.m3primary
+            color: cell.today ? Colours.m3onPrimary : Colours.m3primary
+            opacity: cell.inMonth ? 1 : 0.4
           }
         }
       }
     }
-    // Today's events under the grid: time and title, three of them, an ellipsis
-    // past that. The card is as tall as its contents either way, so an empty
-    // calendar is laid out exactly as before; only a day with something on it
-    // makes the card (and the dashboard) taller.
+    // The picked day under the grid: its name first, then time and title,
+    // three of them, an ellipsis past that -- or one short line when it has
+    // nothing on. The block keeps its place whatever is picked, so the card
+    // holds its height and no row of the day before is left behind.
     ColumnLayout {
-      visible: calRoot.isCurrent && calRoot.todayEvents.length > 0
       Layout.fillWidth: true
       Layout.topMargin: Tk.spacing.small
       spacing: Tk.spacing.extraSmall
       Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Colours.m3outlineVariant }
+      MText {
+        animate: true
+        text: calRoot.selectedLabel
+        color: calRoot.selectedToday ? Colours.m3primary : Colours.m3onSurfaceVariant
+        weight: Font.Medium
+      }
       Repeater {
-        model: calRoot.todayEvents.slice(0, calRoot.agendaMax)
+        model: calRoot.selectedEvents.slice(0, calRoot.agendaMax)
         RowLayout {
           required property var modelData
           Layout.fillWidth: true
@@ -641,14 +696,19 @@ Item {
         }
       }
       MText {
-        visible: calRoot.todayEvents.length > calRoot.agendaMax
+        visible: calRoot.selectedEvents.length > calRoot.agendaMax
         text: "…"
         color: Colours.m3onSurfaceVariant
         Layout.leftMargin: calRoot.agendaTimeWidth + Tk.spacing.small
       }
+      MText {
+        visible: calRoot.selectedEvents.length === 0
+        text: "No events"
+        color: Colours.m3outline
+      }
     }
     // Middle-click anywhere goes back to this month (Caelestia's acceptedButtons).
-    TapHandler { acceptedButtons: Qt.MiddleButton; onTapped: calRoot.shown = new Date(clock.date.getFullYear(), clock.date.getMonth(), 1) }
+    TapHandler { acceptedButtons: Qt.MiddleButton; onTapped: calRoot.back() }
     WheelHandler { onWheel: e => calRoot.step(e.angleDelta.y > 0 ? -1 : 1) }
   }
 
