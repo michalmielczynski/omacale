@@ -26,7 +26,10 @@ Item {
     readonly property string title: {
       const t = tl && tl.title ? tl.title : "Desktop"
       if (!bar.cfg.activeWindow.compact) return t
-      const parts = t.split(/\s+[\-\u2013\u2014]\s+/)
+      // "Strona — Przeglądarka", "Procesy | ePlano", "karta · aplikacja":
+      // dashes need spaces (a hyphen inside a word is not a separator), the
+      // pipe, the middle dot and the bullet do not.
+      const parts = t.split(/\s+[\-\u2013\u2014]\s+|\s*[|\u00b7\u2022]\s*/)
       return parts.length > 1 ? parts[parts.length - 1].trim() : t
     }
     // The room the title has beside the icon, along the bar. Caelestia's
