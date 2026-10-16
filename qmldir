@@ -10,6 +10,7 @@ CAnim 1.0 components/CAnim.qml
 CircularProgress 1.0 components/controls/CircularProgress.qml
 ColouredIcon 1.0 components/ColouredIcon.qml
 singleton AppService 1.0 services/AppService.qml
+singleton CalendarService 1.0 services/CalendarService.qml
 singleton Colours 1.0 core/Colours.qml
 singleton Config 1.0 core/Config.qml
 singleton Liquid 1.0 core/Liquid.qml

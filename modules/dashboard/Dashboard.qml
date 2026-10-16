@@ -453,6 +453,15 @@ Item {
     readonly property int month: shown.getMonth()
     readonly property int year: shown.getFullYear()
     readonly property bool isCurrent: month === clock.date.getMonth() && year === clock.date.getFullYear()
+    // Today's events, from the calendar Omarchy syncs (services/CalendarService,
+    // the same file the stock calendar widget reads). The key changes at
+    // midnight only, so the rows are not rebuilt with the clock's every second.
+    readonly property string todayKey: CalendarService.key(clock.date)
+    readonly property var todayEvents: CalendarService.eventsOnKey(todayKey)
+    // The agenda under the grid: three rows and an ellipsis, the time in a
+    // column of its own so the titles line up ("All Day" fits it too).
+    readonly property int agendaMax: 3
+    readonly property int agendaTimeWidth: Tk.px(48)
     spacing: Tk.spacing.extraSmall
     // Caelestia dash/Calendar.qml: the month slides out one way and the new
     // one slides in from the other.
@@ -544,6 +553,18 @@ Item {
       readonly property int offset: (calRoot.shown.getDay() - daysRow.first + 7) % 7
       readonly property int days: new Date(calRoot.year, calRoot.month + 1, 0).getDate()
       readonly property int prevDays: new Date(calRoot.year, calRoot.month, 0).getDate()
+      // The shown month's days that have events, as a set: one walk over the
+      // month rather than a lookup per cell, and one more when the file is
+      // reread (no polling anywhere).
+      readonly property var eventDays: {
+        const days = {}
+        const d = new Date(calRoot.year, calRoot.month, 1)
+        for (let i = 0; i < grid.days; i++) {
+          d.setDate(i + 1)
+          if (CalendarService.count(d) > 0) days[i + 1] = true
+        }
+        return days
+      }
       Repeater {
         model: 42
         Item {
@@ -552,6 +573,9 @@ Item {
           readonly property bool inMonth: day >= 1 && day <= grid.days
           readonly property int shownDay: inMonth ? day : day < 1 ? grid.prevDays + day : day - grid.days
           readonly property bool today: inMonth && calRoot.isCurrent && day === clock.date.getDate()
+          // Only this month's own days are dotted; the leading and trailing
+          // cells borrow the neighbours' numbers, not their events.
+          readonly property bool hasEvent: inMonth && grid.eventDays[shownDay] === true
           readonly property int weekday: (daysRow.first + index) % 7
           readonly property bool weekend: weekday === 0 || weekday === 6
           width: grid.cellW
@@ -572,7 +596,55 @@ Item {
             color: parent.today ? Colours.m3onPrimary : parent.weekend ? Colours.m3tertiary : Colours.m3onSurfaceVariant
             opacity: parent.inMonth ? 1 : 0.4
           }
+          // A day with events, dotted: 4px, in the row's own gap so no cell
+          // grows and the grid keeps its 42-cell height. It sits on the sunny
+          // today marker, where it flips to onPrimary to stay visible.
+          Rectangle {
+            visible: parent.hasEvent
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: -Tk.px(2)
+            width: Tk.px(4); height: width; radius: width / 2
+            color: parent.today ? Colours.m3onPrimary : Colours.m3primary
+          }
         }
+      }
+    }
+    // Today's events under the grid: time and title, three of them, an ellipsis
+    // past that. The card is as tall as its contents either way, so an empty
+    // calendar is laid out exactly as before; only a day with something on it
+    // makes the card (and the dashboard) taller.
+    ColumnLayout {
+      visible: calRoot.isCurrent && calRoot.todayEvents.length > 0
+      Layout.fillWidth: true
+      Layout.topMargin: Tk.spacing.small
+      spacing: Tk.spacing.extraSmall
+      Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Colours.m3outlineVariant }
+      Repeater {
+        model: calRoot.todayEvents.slice(0, calRoot.agendaMax)
+        RowLayout {
+          required property var modelData
+          Layout.fillWidth: true
+          spacing: Tk.spacing.small
+          MText {
+            text: modelData.startTime || ""
+            color: Colours.m3onSurfaceVariant
+            Layout.preferredWidth: calRoot.agendaTimeWidth
+            elide: Text.ElideRight
+          }
+          MText {
+            text: modelData.title || ""
+            color: Colours.m3onSurface
+            Layout.fillWidth: true
+            elide: Text.ElideRight
+          }
+        }
+      }
+      MText {
+        visible: calRoot.todayEvents.length > calRoot.agendaMax
+        text: "…"
+        color: Colours.m3onSurfaceVariant
+        Layout.leftMargin: calRoot.agendaTimeWidth + Tk.spacing.small
       }
     }
     // Middle-click anywhere goes back to this month (Caelestia's acceptedButtons).

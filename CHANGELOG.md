@@ -2,6 +2,11 @@
 
 What changed in each version of Omacale, newest first. Versions are the ones in `manifest.json`. Each version bump adds its own entry in the same commit.
 
+## 0.54.0 - 2026-10-16
+
+### Added
+- **dashboard**: The calendar card marks every day that has an event with a dot, and lists today's events under the grid -- time and title, three of them and an ellipsis past that. Both come from the file Omarchy's calendar sync writes, read once and watched, so nothing polls; a day without events, or no synced file at all, leaves the card exactly as it was
+
 ## 0.53.3 - 2026-10-14
 
 ### Fixed
