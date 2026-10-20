@@ -50,7 +50,12 @@ Scope {
   property bool sidebar: false
   // Caelestia's NotifDock clears every popup as it opens, and Notifs shows
   // none while it stays open: the toasts are dismissed, not just hidden.
-  onSidebarChanged: if (sidebar && NotifService.popups.length) NotifService.dismissAllPopups()
+  onSidebarChanged: {
+    // Opened by a shortcut it stays open; opened by hovering its corner it
+    // closes once the cursor leaves -- the utilities' rule, mirrored.
+    sidebarShortcut = sidebar && !interactions.inTopSidebar(interactions.mouseX, interactions.mouseY)
+    if (sidebar && NotifService.popups.length) NotifService.dismissAllPopups()
+  }
   Connections {
     target: NotifService
     function onPopupsChanged() { if (scope.sidebar && NotifService.popups.length) Qt.callLater(NotifService.dismissAllPopups) }
@@ -85,6 +90,9 @@ Scope {
   // Utilities opened by a shortcut/click stay open; opened by hovering the
   // bottom-right corner they close once the cursor leaves (Caelestia Interactions).
   property bool utilShortcut: false
+  // The same for the notifications sidebar, whose corner is the top of the
+  // right-hand edge (SUPER+N opens it without this, so it stays).
+  property bool sidebarShortcut: false
   property bool barHover: false
   // `omarchy toggle bar` (SUPER+SHIFT+SPACE) takes the bar column away and
   // nothing else: the frame, the reserved edges and every drawer stay, as in
@@ -1234,6 +1242,16 @@ Scope {
       function nearSideEdge(x) {
         return scope.mirror ? x < win.ax + Tk.borderRounding : x > win.ax + win.aw - Tk.borderRounding
       }
+      // The sidebar's hover corner: the top of its own slot on the right-hand
+      // edge, measured from its height once it is out (as inBottomUtil is), so
+      // hovering inside an open sidebar keeps it and any shortcut-opened one
+      // is handed to the pointer here. Below the utilities when a bottom bar
+      // has put them there (sby follows flipV).
+      function inTopSidebar(x, y) {
+        const visibleH = win.sbh * (1 - win.sbOff)
+        const inX = x >= win.sbx - Tk.borderRounding && x <= win.sbx + win.sbw + Tk.borderRounding
+        return y >= 0 && y < win.sby + visibleH + Tk.borderRounding && inX
+      }
       // A drag's distance toward the middle of the screen from the right-hand
       // drawers' edge (away from it, with a right-hand bar).
       function sideInward(dx) { return scope.mirror ? dx : -dx }
@@ -1252,6 +1270,7 @@ Scope {
         bar.hoverAt(-1, false)
         if (!scope.dashShortcut) scope.dashboard = false
         if (!scope.utilShortcut) scope.utilities = false
+        if (!scope.sidebarShortcut) scope.sidebar = false
         if (!scope.popoutSticky) scope.popout = ""
         scope.barHover = false
       }
@@ -1294,9 +1313,19 @@ Scope {
           if (dy < -scope.cfg.launcher.dragThreshold) scope.launcher = true
           else if (dy > scope.cfg.launcher.dragThreshold) scope.launcher = false
         }
+        // Sidebar: hover the top-right corner, the utilities' rule mirrored.
+        // Its band is the same few pixels the dashboard's top-edge band covers,
+        // so the corner belongs to the sidebar and the dashboard keeps the rest
+        // of the top edge (see showDash below).
+        if (!scope.cfg.sidebar || scope.cfg.sidebar.enabled) {
+          const showSide = inTopSidebar(x, y)
+          if (!scope.sidebarShortcut) scope.sidebar = showSide
+          else if (showSide && !drawerNav.cursor) scope.sidebarShortcut = false
+        }
+
         // Dashboard: hover the top edge.
         if (scope.cfg.dashboard.enabled) {
-          const showDash = scope.cfg.dashboard.showOnHover && inTopDash(x, y)
+          const showDash = scope.cfg.dashboard.showOnHover && inTopDash(x, y) && !inTopSidebar(x, y)
           if (!scope.dashShortcut) scope.dashboard = showDash
           // Caelestia hands a shortcut-opened dashboard to the pointer once it
           // hovers it -- which also takes the keyboard away. Not mid-way
