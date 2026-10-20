@@ -69,6 +69,8 @@ VERIFIED_SERVICES = {
     "3f0a265a09f7957e8f5d74666595d3136ec64899c414426190460f9e2098e701",
     # Omarchy dev, 4.0.0.r6691 (8b4eae6)
     "92c37d5dc617ce53e4080ad420ae18613bc62f94923c150e0e69fea52534eecd",
+    # Omarchy 4.0.5 (stable), 2026-10-19: stranded-lock helper takes the shell's pid
+    "7b38aa2f63572419b82f34f058fadadfc6d9e4971acfc64783b5b8d1212cb218",
 }
 
 HOME = os.path.expanduser("~")
