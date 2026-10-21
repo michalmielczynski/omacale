@@ -1235,7 +1235,10 @@ Scope {
       active: Glass.lens
       sourceComponent: GlassBackdrop {
         screen: scope.screen
-        live: win.anyDrawer && !scope.hasFullscreen
+        // Lens on => the bar frame (clock side) draws its own body from this
+        // backdrop, so it has to capture live even with no drawer open,
+        // otherwise Super+left/right shows a stale frame under the glass.
+        live: (win.anyDrawer || Glass.lens) && !scope.hasFullscreen
         frost: Glass.frostPx
       }
     }
