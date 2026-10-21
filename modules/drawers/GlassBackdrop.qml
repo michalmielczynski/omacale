@@ -110,7 +110,10 @@ Item {
     }
   }
   Timer {
-    interval: 1000
+    // 1000 -> 40 ms: Hyprland nie wysyla zaden eventow podczas dragu/animacji
+    // pulpitu, wiec tylko to odswiezanie pozycji topleveli daje efekt 'real glass'
+    // nad kazdym oknem. Koszt: hyprctl clients -j 25x/s (tylko gdy root.live).
+    interval: 40
     running: root.live
     repeat: true
     triggeredOnStart: true
