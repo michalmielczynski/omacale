@@ -291,6 +291,19 @@ Item {
     return scopes.length ? scopes[0] : null
   }
 
+  // A hosted widget that names its popout ("plugin") and brings the content
+  // (popoutContent) gets Omacale's own popout surface: the same card, glass and
+  // animation as the status popouts, instead of a window of its own.
+  function openPluginPopout(owner) {
+    if (!owner || !owner.popout) return
+    const s = scopeFor(slotScreen(owner) || barScreen())
+    if (s) s.openPopoutKeys(owner.popout)
+  }
+  function closePluginPopout(owner) {
+    const name = owner && owner.popout ? owner.popout : ""
+    for (const s of scopes) if (name === "" || s.popout === name) s.popout = ""
+  }
+
   // Omarchy id -> the Omacale popout for it. Not mapped, so their hotkeys do
   // nothing: omarchy.monitor (no Omacale display panel yet), and the clock
   // and weather (SUPER+CTRL+ALT+D) -- the dashboard has its own binds.
@@ -472,6 +485,16 @@ Item {
     if (activePopout === owner) activePopout = null
   }
 
+  // Let go of a popout that is no longer shown. ScreenScope calls this when it
+  // closes `popout` (pointer off the bar and off the card); it reaches only the
+  // owner's close(), never toggle, so a widget already closed does nothing.
+  function releaseActivePopout() {
+    var owner = activePopout
+    if (!owner) return
+    activePopout = null
+    if (typeof owner.close === "function") owner.close()
+  }
+
   // Tooltip tracking
   property var tooltipTarget: null
   property var pendingTooltipTarget: null
@@ -492,6 +515,10 @@ Item {
   function showTooltip(target, text) {
     clearTooltip()
     if (!target || !text) return
+    // A widget that brings its own popout content opens that card on hover
+    // (BarWidgetSlot.hoverReveal), so a name bubble would sit on top of it.
+    var item = target && target.activeItem ? target.activeItem : null
+    if (item && "popoutContent" in item) return
     var req = ++tooltipRequest
     pendingTooltipTarget = target
     pendingTooltipText = text

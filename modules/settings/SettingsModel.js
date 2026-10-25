@@ -480,6 +480,7 @@ var subpages = {
     rows: [
       { type: "section", text: "Visible icons" },
       { type: "toggle", key: "bar.status.lockStatus", label: "Caps / num lock", subtext: "Only shown while a lock key is on" },
+      { type: "toggle", key: "bar.status.numLock", when: { key: "bar.status.lockStatus", value: true }, label: "Num lock", subtext: "Show num lock too; turn off on a machine without a keypad" },
       { type: "toggle", key: "bar.status.audio", label: "Audio" },
       { type: "toggle", key: "bar.status.microphone", label: "Microphone" },
       { type: "toggle", key: "bar.status.microphoneInUseOnly", label: "Microphone only while recording", subtext: "Hide it until an app opens the microphone" },
@@ -673,7 +674,8 @@ var subpages = {
       { type: "toggle", key: "utilities.toggles.settings", label: "Settings", subtext: "Opens Omacale settings" },
       { type: "toggle", key: "utilities.toggles.gameMode", label: "Game mode" },
       { type: "toggle", key: "utilities.toggles.dnd", label: "Do not disturb" },
-      { type: "toggle", key: "utilities.toggles.nightlight", label: "Night light", subtext: "Omarchy's night light; more than six toggles wrap onto a second row" }
+      { type: "toggle", key: "utilities.toggles.nightlight", label: "Night light", subtext: "Omarchy's night light; more than six toggles wrap onto a second row" },
+      { type: "toggle", key: "utilities.toggles.wwan", label: "Mobile modem", subtext: "Radio of the WWAN modem (melon: WWAN); hides itself when the machine has no modem" }
     ]
   }
 }

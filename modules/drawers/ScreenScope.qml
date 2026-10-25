@@ -287,10 +287,21 @@ Scope {
       // A popout opened from the bar focus mode gives the keys back to it.
       if (barFocus) Qt.callLater(() => bar.takeKeys())
       morphChanged("popout", false)
+      // A card opened by a hosted widget (melon.rekuperacja, melon.swiatla) has
+      // no hover of its own: nothing would close it once the pointer leaves the
+      // bar and the card, so let go of it here.
+      releaseHostPopout()
     } else if (popoutWas === "") morphChanged("popout", true)
     popoutWas = popout
   }
 
+  // A popout opened by a hosted widget must close with the pointer, like every
+  // other bar popout: ScreenScope clears `popout` once the cursor is off both
+  // the bar and the card (inPopout covers the card for all four edges), and
+  // nothing else would ever call the widget's close(). Called from onPopoutChanged.
+  function releaseHostPopout() {
+    if (host && typeof host.releaseActivePopout === "function") host.releaseActivePopout()
+  }
   // Open a bar popout with the keyboard (Bar.summonBarWidget, IPC popout).
   // Opens, never toggles: the host asks isBarWidgetOpen first.
   function openPopoutKeys(name) {

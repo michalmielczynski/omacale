@@ -163,7 +163,7 @@ Rectangle {
         id: lockStatus
         readonly property string popout: "lockstatus"
         readonly property bool caps: bar.host.capsLock
-        readonly property bool num: bar.host.numLock
+        readonly property bool num: bar.host.numLock && bar.cfg.status.numLock
         property real gap: caps && num ? statusCol.gapPx : 0
         // How much of the bar each icon takes, along it.
         property real capsLen: caps ? (bar.vertical ? capsIcon.implicitHeight : capsIcon.implicitWidth) : 0

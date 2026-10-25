@@ -30,13 +30,16 @@ GlassCard {
     { id: "settings", icon: "settings", toggle: false },
     { id: "gameMode", icon: "gamepad", toggle: true },
     { id: "dnd", icon: "notifications_off", toggle: true },
-    { id: "nightlight", icon: "nightlight", toggle: true }
+    { id: "nightlight", icon: "nightlight", toggle: true },
+    // melon: WWAN: radio modemu komórkowego. Bez radia kafelek znika.
+    { id: "wwan", icon: "signal_cellular_alt", toggle: true }
   ]
   // Only changes when the settings do, never when a toggle's state flips, so
   // the Repeater keeps its buttons mid-press.
   readonly property var toggles: {
     const on = Config.o.utilities.toggles
-    return all.filter(t => !on || on[t.id] !== false)
+    return all.filter(t =>
+      (!on || on[t.id] !== false) && (t.id !== "wwan" || root.wwanPresent))
   }
   readonly property int splitIndex: Math.ceil(toggles.length / 2)
   readonly property bool needExtraRow: toggles.length > 6
@@ -49,6 +52,7 @@ GlassCard {
       case "gameMode": return GameMode.enabled
       case "dnd": return NotifService.dnd
       case "nightlight": return nightlightOn
+      case "wwan": return root.wwanOn
     }
     return false
   }
@@ -64,6 +68,61 @@ GlassCard {
     else if (id === "gameMode") GameMode.toggle()
     else if (id === "dnd") NotifService.toggleDnd()
     else if (id === "nightlight") NightLight.set(!NightLight.on)
+    else if (id === "wwan") root.toggleWwan()
+  }
+
+  // ------------------------------------------------------------ melon: WWAN
+  // Stan bierze z `wwan-status` (jedna linia: `<stan> key=value …`), a klik
+  // idzie do `wwan-toggle` — rfkill bez sudo, dopiero przy zablokowanym
+  // firmware Quectla MBIM. Świadomie bez `mmcli --disable`: ten modem
+  // zatrzaskuje radio w firmware i wyjścia z tego nie ma bez roota.
+  property string wwanBin: (Quickshell.env("HOME") || "") + "/.local/bin"
+  property bool wwanOn: false
+  property bool wwanPresent: false
+  property bool wwanPending: false          // kliknięte, modem jeszcze nie nadąża
+  property int wwanTicks: 0
+
+  function wwanApply(line) {
+    const parts = (line || "").trim().split(/\s+/)
+    const kw = parts[0] || ""
+    const rf = (parts.find(p => p.indexOf("rfkill=") === 0) || "").split("=")[1]
+    root.wwanPresent = kw !== "absent"
+    // Kafelek pokazuje radio (rfkill), nie to, czy modem już się zarejestrował:
+    // zapala się od ręki, a `waiting` tylko przedłuża doganianie stanu.
+    root.wwanOn = rf ? (rf === "no" || rf === "unblocked")
+                     : (kw === "on" || kw === "waiting" || kw === "broken")
+    if (kw === "on" || kw === "off") root.wwanPending = false
+  }
+
+  function toggleWwan() {
+    if (root.wwanPending) return
+    root.wwanPending = true
+    root.wwanTicks = 12                     // ~18 s doganiania: modem wstaje wolno
+    wwanSettle.restart()
+    Sys.run(root.wwanBin + "/wwan-toggle toggle")
+  }
+
+  property Process wwanStatus: Process {
+    command: [root.wwanBin + "/wwan-status"]
+    stdout: StdioCollector { onStreamFinished: root.wwanApply(text) }
+  }
+
+  // Pyta tylko przy otwartej szufladzie utility — zamknięta nie generuje
+  // niczyjego ruchu.
+  property Timer wwanPoll: Timer {
+    interval: 5000
+    repeat: true
+    running: root.scope ? root.scope.utilities : true
+    triggeredOnStart: true
+    onTriggered: root.wwanStatus.running = true
+  }
+  property Timer wwanSettle: Timer {
+    interval: 1500
+    repeat: true
+    onTriggered: {
+      if (root.wwanTicks-- <= 0) { stop(); return }
+      root.wwanStatus.running = true
+    }
   }
 
   // Caelestia closes the utilities drawer and opens its settings window;
@@ -72,7 +131,7 @@ GlassCard {
     if (scope) { scope.utilities = false; scope.sidebar = false }
     if (host) host.toggle("settings", page)
   }
-  readonly property var settingsPages: ({ wifi: "network", bluetooth: "bluetooth" })
+  readonly property var settingsPages: ({ wifi: "network", bluetooth: "bluetooth", wwan: "network" })
 
 
   implicitHeight: layout.implicitHeight + Tk.padding.extraLargeIncreased
@@ -110,6 +169,10 @@ GlassCard {
         fillWidth: true
         shapeMorph: true
         round: true
+        // melon: wlaczone kafle byly kwadratami, wylaczone kolami (radius
+        // IconButton: on ? medium : height/2). Jeden ksztalt dla obu stanow,
+        // morfniecia przy nacisnieciu zostaje.
+        radius: stateLayer.pressed ? Tk.rounding.small : Tk.rounding.medium
         inactiveColour: Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
         inactiveOnColour: Colours.m3onSurfaceVariant
         onClicked: root.activate(modelData.id)

@@ -14,6 +14,18 @@ ColumnLayout {
   property var info: ({})
   property bool confirmReset: false
 
+  // A bar/About logo the user can replace: ~/.config/omacale/logo.png wins
+  // over Omarchy's package icon; delete the file to go back to it.
+  readonly property string userLogoPath: Quickshell.env("HOME") + "/.config/omacale/logo.png"
+  property bool userLogoExists: false
+  FileView {
+    path: root.userLogoPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.userLogoExists = true
+    onLoadFailed: root.userLogoExists = false
+  }
+
   Process {
     running: true
     command: ["bash", "-c",
@@ -51,7 +63,7 @@ ColumnLayout {
         ColouredIcon {
           anchors.centerIn: parent
           implicitSize: Tk.px(44)
-          source: "file://" + Quickshell.env("OMARCHY_PATH") + "/icon.png"
+          source: root.userLogoExists ? "file://" + root.userLogoPath : "file://" + Quickshell.env("OMARCHY_PATH") + "/icon.png"
           colour: Colours.m3onPrimaryContainer
         }
       }

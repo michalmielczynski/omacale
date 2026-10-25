@@ -34,11 +34,11 @@ var values = {
     workspaces: { shown: 5, display: "shapes", activeIndicator: true, activeTrail: true, occupiedBg: false, showWindows: true, maxWindowIcons: 5, specialDisplay: "icons", specialShowWindows: true },
     activeWindow: { enabled: true, compact: false },
     tray: { enabled: true, background: false, recolour: false, compact: false, hiddenIcons: [] },
-    plugins: { enabled: true, compact: false, unpinned: [], hidden: [] },
+    plugins: { enabled: true, compact: false, unpinned: [], hidden: [], bare: [], scale: [] },
     // Settings › Taskbar › Layout. Empty lists mean the default order (BarLayout.js).
     layout: { start: [], center: [], end: [], removed: [], drawer: [], maxShown: 0, seen: [], adopted: false, fresh: [], showDuplicates: false },
     clock: { enabled: true, showIcon: true, showDate: false, showSeconds: false, background: false },
-    status: { lockStatus: true, audio: false, microphone: false, network: true, bluetooth: true, battery: true, keepAwake: true, update: true, notifications: true, bluetoothConnectedOnly: false, microphoneInUseOnly: false, kbLayout: false },
+    status: { lockStatus: true, numLock: true, audio: false, microphone: false, network: true, bluetooth: true, battery: true, keepAwake: true, update: true, notifications: true, bluetoothConnectedOnly: false, microphoneInUseOnly: false, kbLayout: false },
     popouts: { statusIcons: true, tray: true, activeWindow: true },
     scroll: { workspaces: true, volume: true, brightness: true }
   },
@@ -88,7 +88,7 @@ var values = {
     toasts: { chargingChanged: true, gameModeChanged: true, dndChanged: true, audioOutputChanged: true, audioInputChanged: true, nowPlaying: false },
     // Caelestia's default quick toggles (utilitiesconfig.hpp), plus Omarchy's
     // night light, off by default so the card keeps Caelestia's single row.
-    toggles: { wifi: true, bluetooth: true, mic: true, settings: true, gameMode: true, dnd: true, nightlight: false }
+    toggles: { wifi: true, bluetooth: true, mic: true, settings: true, gameMode: true, dnd: true, nightlight: false, wwan: true }
   },
   // Caelestia osdconfig.hpp. Volume and brightness keys only reach it once
   // Omarchy's own OSD has stepped aside for them (scripts/osd-handover);

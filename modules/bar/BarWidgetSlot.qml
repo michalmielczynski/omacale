@@ -38,6 +38,8 @@ Item {
   // The size of one status icon (an MIcon at the default size) along the bar,
   // from the pill.
   property real cellLen: Tk.body.small * 2
+  // bar.plugins.scale: how much bigger than a status icon this widget reads.
+  property real extraScale: 1
 
   readonly property string moduleName: host.entryId(entry)
   readonly property var moduleSettings: host.entrySettings(entry)
@@ -59,7 +61,7 @@ Item {
   readonly property string displayName: moduleMetadata && moduleMetadata.displayName
     ? String(moduleMetadata.displayName) : moduleName
 
-  readonly property real iconScale: host.pluginIconScale
+  readonly property real iconScale: host.pluginIconScale * extraScale
   readonly property real logicalBreadth: host.pluginBarSize
   readonly property real logicalCell: cellLen / iconScale
   // Longest label that is still turned (in a column) rather than replaced, in
@@ -135,12 +137,12 @@ Item {
   readonly property real stageWidth: {
     if (shape !== "icon") return vertical ? naturalWidth : Math.max(1, naturalWidth)
     if (vertical) return logicalBreadth
-    return naturalWidth > Style.bar.iconSlot + 1 ? naturalWidth : logicalCell
+    return naturalWidth > Style.bar.iconSlot + 1 ? naturalWidth : Math.max(logicalCell, naturalWidth)
   }
   readonly property real stageHeight: {
     if (shape !== "icon") return Math.max(1, naturalHeight)
     if (!vertical) return logicalBreadth
-    return naturalHeight > Style.bar.iconSlot + 1 ? naturalHeight : logicalCell
+    return naturalHeight > Style.bar.iconSlot + 1 ? naturalHeight : Math.max(logicalCell, naturalHeight)
   }
   // How much of the bar the slot takes, along it: the widget's whole length,
   // or, as an idle stack, the stack's on the way to it.
@@ -455,6 +457,28 @@ Item {
     restoreMode: Binding.RestoreNone
   }
 
+  // ---- plugin popouts: grow and fade like Omacale's own ----
+  // The hosted panel is another surface, so a Behavior cannot be attached from
+  // here; these animations drive the card's own scale/opacity instead.
+  function animateCompatCard(open) {
+    if (!compatibilityCard) return
+    compatGrow.stop(); compatShrink.stop(); compatFadeIn.stop(); compatFadeOut.stop()
+    compatGrow.target = compatibilityCard
+    compatShrink.target = compatibilityCard
+    compatFadeIn.target = compatibilityCard
+    compatFadeOut.target = compatibilityCard
+    if (open) { compatFadeIn.start(); compatGrow.start() }
+    else { compatFadeOut.start(); compatShrink.start() }
+  }
+  Connections {
+    target: root
+    function onCardSurfaceActiveChanged() { root.animateCompatCard(root.cardSurfaceActive) }
+  }
+  NumberAnimation { id: compatGrow; property: "scale"; from: 0.92; to: 1; duration: 260; easing.type: Easing.OutCubic }
+  NumberAnimation { id: compatShrink; property: "scale"; to: 0.92; duration: 150; easing.type: Easing.InCubic }
+  NumberAnimation { id: compatFadeIn; property: "opacity"; from: 0; to: 1; duration: 200; easing.type: Easing.OutCubic }
+  NumberAnimation { id: compatFadeOut; property: "opacity"; to: 0; duration: 140; easing.type: Easing.InCubic }
+
   // Omarchy-unit stage, scaled (and for a label, turned) about its centre.
   Item {
     id: stage
@@ -586,12 +610,50 @@ Item {
       hoverEnabled: true
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       cursorShape: Qt.PointingHandCursor
-      onEntered: root.host.showTooltip(compactButton, root.placeholder ? root.displayName + " · idle" : root.displayName)
+      // A widget with its own popout content (melon.rekuperacja, melon.swiatla)
+      // opens the Omacale card on hover — see `hoverAt` below — so it gets no
+      // tooltip: the card says more than a name bubble would.
+      onEntered: if (!root.hostBringsPopout) root.host.showTooltip(compactButton, root.placeholder ? root.displayName + " · idle" : root.displayName)
       onExited: root.host.hideTooltip(compactButton)
       onClicked: function(mouse) { root.triggerCompactAction(mouse.button) }
     }
   }
 
+  // True when the widget brings Omacale's popout card (popoutContent, added by
+  // patches/apply-plugin-popout-host.py). Such a widget is opened on hover and
+  // shows no tooltip; one that draws a window of its own keeps Omarchy's
+  // click + tooltip.
+  readonly property bool hostBringsPopout: activeItem ? ("popoutContent" in activeItem) : false
+
+  // --------------------------------------------------- hover opens the card
+  //
+  // Omacale's own popouts (wifi, battery, tray) open while the pointer sits on
+  // their icon; a hosted widget cannot do that by itself because Qt never
+  // reports the pointer leaving the bar (see BarContent.hoverAt), so hovering
+  // its icon only ever raised a tooltip. ScreenScope drives it through hoverAt
+  // below, which SinglePluginEntry forwards from its own answer.
+  //
+  // Only opening is driven from here. Closing stays ScreenScope's job: when the
+  // pointer is off the bar and outside the popout card it clears `scope.popout`,
+  // and requestPopout's claim (pluginPopoutOwners) keeps releasing while the
+  // widget reports opened = false, which is what makes a click still toggle.
+  property bool hoverHeld: false
+  Timer { id: hoverRelease; interval: 120; onTriggered: root.hoverHeld = false }
+  function hoverAt(a, onBar) {
+    if (!hostBringsPopout || !shown) return
+    const along = parent ? bar.pointAlong(bar.pointOn(root, a)) : -1
+    if (onBar && along >= 0 && along <= bar.alen(root)) { hoverRelease.stop(); hoverHeld = true }
+    else if (hoverHeld && !hoverRelease.running) hoverRelease.start()
+  }
+
+  // Open/close the card from the hover state. open()/close() drive `opened`,
+  // and onOpenedChanged below does the whole handshake with the host
+  // (requestPopout + openPluginPopout), so nothing here touches Omacale's
+  // popout directly — one path for a click and for a hover. Closing is left to
+  // ScreenScope: once the pointer is off the bar and out of the card it clears
+  // `popout` itself, exactly as it does for the status popouts.
+  readonly property bool hoverWantsOpen: hoverHeld && hostBringsPopout && activeItem && !activeItem.opened
+  onHoverWantsOpenChanged: if (hoverWantsOpen && activeItem) activeItem.open()
   Connections {
     target: root.activeItem
     ignoreUnknownSignals: true
@@ -601,9 +663,16 @@ Item {
         if (root.activeItem.opened) {
           if (root.host && typeof root.host.requestPopout === "function")
             root.host.requestPopout(root.activeItem)
+          // Its own popout content: Omacale draws the card (Bar.openPluginPopout).
+          if (root.host && typeof root.host.openPluginPopout === "function"
+              && "popoutContent" in root.activeItem)
+            root.host.openPluginPopout(root.activeItem)
         } else {
           if (root.host && typeof root.host.releasePopout === "function")
             root.host.releasePopout(root.activeItem)
+          if (root.host && typeof root.host.closePluginPopout === "function"
+              && "popoutContent" in root.activeItem)
+            root.host.closePluginPopout(root.activeItem)
         }
       }
     }

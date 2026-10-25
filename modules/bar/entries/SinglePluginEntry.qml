@@ -22,6 +22,20 @@ Item {
   // The host's registry entry for the widget; null while it isn't one.
   readonly property var hostEntry: bar.host.widgetEntry(pluginId)
   readonly property bool hidden: bar.cfg.plugins.hidden.indexOf(pluginId) >= 0
+  // Drawn without its own pill (bar.plugins.bare): no bubble, no padding.
+  readonly property bool bare: (bar.cfg.plugins.bare || []).indexOf(pluginId) >= 0
+  // bar.plugins.scale: "id:factor" for this widget; 1 when it isn't listed.
+  readonly property real widgetScale: {
+    const list = bar.cfg.plugins.scale || []
+    for (let i = 0; i < list.length; i++) {
+      const e = String(list[i]), at = e.lastIndexOf(":")
+      if (at > 0 && e.slice(0, at) === pluginId) {
+        const f = parseFloat(e.slice(at + 1))
+        if (isFinite(f) && f > 0) return f
+      }
+    }
+    return 1
+  }
   readonly property Item slot: slotLoader.item
   readonly property bool shown: !hidden && !!slot && slot.shown
   // Next to status icons or another widget, they share one pill (BarContent's
@@ -46,8 +60,8 @@ Item {
     id: pill
     parent: singlePluginEntry.bar.overlay
     // The padding at each end of the pill, along the bar, as the plugin pill's.
-    property real padStart: singlePluginEntry.joinBefore ? 0 : Tk.padding.medium
-    property real padEnd: singlePluginEntry.joinAfter ? 0 : Tk.padding.medium
+    property real padStart: singlePluginEntry.bare || singlePluginEntry.joinBefore ? 0 : Tk.padding.medium
+    property real padEnd: singlePluginEntry.bare || singlePluginEntry.joinAfter ? 0 : Tk.padding.medium
     // Joining and parting glide (a Behavior needs a plain property).
     Behavior on padStart { Anim {} }
     Behavior on padEnd { Anim {} }
@@ -63,7 +77,7 @@ Item {
     width: singlePluginEntry.bar.vertical ? implicitWidth : implicitWidth * singlePluginEntry.fold
     height: singlePluginEntry.bar.vertical ? implicitHeight * singlePluginEntry.fold : implicitHeight
     radius: (singlePluginEntry.bar.vertical ? width : height) / 2
-    color: singlePluginEntry.joinBefore || singlePluginEntry.joinAfter ? "transparent" : Colours.m3surfaceContainer
+    color: singlePluginEntry.bare || singlePluginEntry.joinBefore || singlePluginEntry.joinAfter ? "transparent" : Colours.m3surfaceContainer
     clip: true
 
     Loader {
@@ -79,6 +93,7 @@ Item {
         vertical: singlePluginEntry.bar.vertical
         edge: singlePluginEntry.bar.edge
         cellLen: singlePluginEntry.bar.cellLen
+        extraScale: singlePluginEntry.widgetScale
         pinned: true
         collapsed: false
         revealHeld: singlePluginEntry.revealHeld
@@ -97,6 +112,10 @@ Item {
     const along = shown && parent ? bar.pointAlong(bar.pointOn(singlePluginEntry, a)) : -1
     if (onBar && along >= 0 && along <= bar.alen(singlePluginEntry)) { revealRelease.stop(); revealHeld = true }
     else if (revealHeld && !revealRelease.running) revealRelease.start()
+    // The slot inside decides about its card (opens it on hover, see
+    // BarWidgetSlot.hoverAt); same coordinates, same entry box.
+    const hosted = slotLoader.item
+    if (hosted && typeof hosted.hoverAt === "function") hosted.hoverAt(a, onBar)
   }
 
   function navStops() {

@@ -149,6 +149,15 @@ QtObject {
           // Widgets left out of the bar altogether (the plugin keeps running;
           // only its bar widget isn't made), like tray.hiddenIcons.
           property list<string> hidden: []
+          // Widgets drawn on the bar without a pill of their own: no bubble and
+          // no padding, so a mark like melon.eye's sits straight in the bar and
+          // its cell is only as long as the widget itself.
+          property list<string> bare: []
+          // Widgets scaled on the bar, "id:factor" (e.g. "melon.eye:1.9").
+          // Omacale normalises a hosted widget to its status-icon size; this
+          // multiplies the mark and the cell it takes, so a widget can read at
+          // the size of the bar's own circles (the workspace shapes).
+          property list<string> scale: []
         }
         // Which items sit in the bar's start, center and end sections, in
         // order (core/BarLayout.js). Empty means the default order, so a
@@ -184,6 +193,8 @@ QtObject {
         }
         property JsonObject status: JsonObject {
           property bool lockStatus: true
+          // Hide num lock when the machine has no keypad (Settings > Bar).
+          property bool numLock: true
           property bool audio: false
           property bool microphone: false
           property bool network: true
@@ -327,6 +338,8 @@ QtObject {
           property bool gameMode: true
           property bool dnd: true
           property bool nightlight: false
+          // melon: WWAN: modem komórkowy (helpery w ~/.local/bin).
+          property bool wwan: true
         }
       }
       property JsonObject osd: JsonObject {

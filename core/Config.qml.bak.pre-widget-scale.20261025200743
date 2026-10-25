@@ -1,0 +1,465 @@
+pragma Singleton
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import "Defaults.js" as D
+import ".."
+
+// Omacale settings, persisted to ~/.config/omacale/settings.json.
+// The file only exists once something is changed; edits made by hand are
+// picked up live. Read values with Config.o.<section>.<key>.
+QtObject {
+  id: root
+
+  readonly property string dir: Quickshell.env("HOME") + "/.config/omacale"
+  readonly property string path: dir + "/settings.json"
+  readonly property var o: file.adapter
+  property bool loaded: false
+  property real lastLoad: 0
+
+  function get(key) {
+    const parts = key.split(".")
+    let obj = o
+    for (let i = 0; i < parts.length && obj; i++) obj = obj[parts[i]]
+    return obj
+  }
+  function set(key, value) {
+    const parts = key.split(".")
+    let obj = o
+    for (let i = 0; i < parts.length - 1; i++) obj = obj[parts[i]]
+    if (obj[parts[parts.length - 1]] !== value) {
+      obj[parts[parts.length - 1]] = value
+      // A set() is never the file being read back, so it is always saved --
+      // even in the 300ms after a load that onAdapterUpdated ignores, which
+      // is when a handover installed at startup clears its fallback mark.
+      if (loaded)
+        saveTimer.restart()
+    }
+  }
+  function defaultOf(key) { return D.get(D.values, key) }
+  function isDefault(key) { return get(key) === defaultOf(key) }
+
+  // Put every key back to its default.
+  function resetAll() {
+    const walk = (defs, prefix) => {
+      for (const k in defs) {
+        const key = prefix ? prefix + "." + k : k
+        if (typeof defs[k] === "object" && !Array.isArray(defs[k])) walk(defs[k], key)
+        else set(key, defs[k])
+      }
+    }
+    walk(D.values, "")
+  }
+
+  // Coalesce bursts of changes (sliders) into one write.
+  property Timer saveTimer: Timer {
+    interval: 250
+    onTriggered: root.mkdir.running = true
+  }
+  property Process mkdir: Process {
+    command: ["mkdir", "-p", root.dir]
+    onExited: root.file.writeAdapter()
+  }
+
+  property FileView file: FileView {
+    path: root.path
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: { root.loaded = true; root.lastLoad = Date.now() }
+    onLoadFailed: root.loaded = true
+    // Changes that come from reading the file itself must not be written back.
+    onAdapterUpdated: if (root.loaded && Date.now() - root.lastLoad > 300) root.saveTimer.restart()
+
+    JsonAdapter {
+      property JsonObject appearance: JsonObject {
+        property string palette: "material"
+        property string mode: "auto"
+        property string variant: "tonalspot"
+        property string seed: ""
+        property string seedTheme: ""
+        property bool seedFollowsTheme: true
+        property bool omarchySurfaces: false
+        property real animScale: 1.0
+        property real deformScale: 1.0
+        property JsonObject scale: JsonObject {
+          property string source: "omarchy"
+          property real ui: 1.0
+          property real font: 1.0
+          property real padding: 1.0
+          property real spacing: 1.0
+          property real rounding: 1.0
+        }
+        property bool shadow: true
+        property JsonObject transparency: JsonObject {
+          property bool enabled: false
+          property real base: 0.85
+          property real layers: 0.4
+        }
+      }
+      property JsonObject border: JsonObject {
+        property int thickness: 10
+        property int rounding: 25
+        property int smoothing: 20
+      }
+      property JsonObject bar: JsonObject {
+        // left | right | top | bottom, or "omarchy" to follow Omarchy's own
+        // bar position (shell.json, `omarchy bar position`).
+        property string position: "left"
+        // Caelestia bar.excludedScreens: screens (connector names) with no bar.
+        property list<string> excludedScreens: []
+        // A screen's own edge, as "screen=edge" (core/Screens.js); else `position`.
+        property list<string> screenPositions: []
+        property bool persistent: true
+        property bool showOnHover: true
+        property bool logo: true
+        property string logoIcon: "omarchy"
+        property bool power: true
+        property JsonObject workspaces: JsonObject {
+          property int shown: 5
+          property string display: "shapes"
+          property bool activeIndicator: true
+          property bool activeTrail: true
+          property bool occupiedBg: false
+          property bool showWindows: true
+          property int maxWindowIcons: 5
+          property string specialDisplay: "icons"
+          property bool specialShowWindows: true
+        }
+        property JsonObject activeWindow: JsonObject {
+          property bool enabled: true
+          property bool compact: false
+        }
+        property JsonObject tray: JsonObject {
+          property bool enabled: true
+          property bool background: false
+          property bool recolour: false
+          property bool compact: false
+          // Caelestia bar.tray.hiddenIcons: tray item ids never shown.
+          property list<string> hiddenIcons: []
+        }
+        property JsonObject plugins: JsonObject {
+          property bool enabled: true
+          property bool compact: false
+          // Widgets kept behind the pill's chevron. Empty (the default) means
+          // every widget is pinned, so nothing has to be seeded at startup --
+          // a list of pinned ids would have to be written before the plugin
+          // registry has finished loading, and would miss the late ones.
+          property list<string> unpinned: []
+          // Widgets left out of the bar altogether (the plugin keeps running;
+          // only its bar widget isn't made), like tray.hiddenIcons.
+          property list<string> hidden: []
+          // Widgets drawn on the bar without a pill of their own: no bubble and
+          // no padding, so a mark like melon.eye's sits straight in the bar and
+          // its cell is only as long as the widget itself.
+          property list<string> bare: []
+        }
+        // Which items sit in the bar's start, center and end sections, in
+        // order (core/BarLayout.js). Empty means the default order, so a
+        // fresh install writes nothing; a missing item is put back by
+        // BarLayout.resolve in its default place.
+        property JsonObject layout: JsonObject {
+          property list<string> start: []
+          property list<string> center: []
+          property list<string> end: []
+          // Built-ins and widgets taken off the bar ("Not in the bar"), kept off until added back.
+          property list<string> removed: []
+          // Bar widgets already offered once (BarLayout.adoptNew): one that
+          // isn't here is new, and goes on the bar. `adopted` is false until
+          // the first adoption, which only places Omarchy's own bar's widgets.
+          property list<string> seen: []
+          property bool adopted: false
+          // Widgets adoption put on the bar since Settings › Taskbar was last
+          // open: marked New there.
+          property list<string> fresh: []
+          // Behind the chevron (BarLayout.render): items placed there, and
+          // with maxShown > 0 the shown icons after it past that many.
+          property list<string> drawer: []
+          property int maxShown: 0
+          // Settings › Taskbar's add list: Omarchy's versions of built-ins too.
+          property bool showDuplicates: false
+        }
+        property JsonObject clock: JsonObject {
+          property bool enabled: true
+          property bool showIcon: true
+          property bool showDate: false
+          property bool showSeconds: false
+          property bool background: false
+        }
+        property JsonObject status: JsonObject {
+          property bool lockStatus: true
+          property bool audio: false
+          property bool microphone: false
+          property bool network: true
+          property bool bluetooth: true
+          property bool battery: true
+          property bool keepAwake: true
+          property bool update: true
+          property bool notifications: true
+          property bool bluetoothConnectedOnly: false
+          property bool microphoneInUseOnly: false
+          property bool kbLayout: false
+        }
+        property JsonObject popouts: JsonObject {
+          property bool statusIcons: true
+          property bool tray: true
+          property bool activeWindow: true
+        }
+        property JsonObject scroll: JsonObject {
+          property bool workspaces: true
+          property bool volume: true
+          property bool brightness: true
+        }
+      }
+      property JsonObject dashboard: JsonObject {
+        property bool enabled: true
+        property bool showOnHover: true
+        property bool clockSeconds: false
+        property bool mediaGif: true
+        property bool lyrics: true
+        property bool visualiser: true
+        property JsonObject tabs: JsonObject {
+          property bool dashboard: true
+          property bool media: true
+          property bool performance: true
+          property bool weather: true
+        }
+        property JsonObject performance: JsonObject {
+          property bool showCpu: true
+          property bool showGpu: true
+          property bool showMemory: true
+          property bool showStorage: true
+          property bool showNetwork: true
+          property bool showBattery: true
+        }
+      }
+      property JsonObject launcher: JsonObject {
+        property bool enabled: true
+        property int maxShown: 7
+        property int maxWallpapers: 9
+        property string actionPrefix: ">"
+        // Typing this walks the Omarchy menu inside the launcher.
+        property string menuPrefix: ":"
+        property bool vimKeybinds: false
+        property bool dangerousActions: true
+        property int dragThreshold: 50
+        // What `omacale wallpapers` / `themes` (the optional picker binds) open:
+        // "omacale" (the launcher carousel) or "omarchy" (Omarchy's own menu).
+        property string wallpaperPicker: "omacale"
+        property string themePicker: "omacale"
+        property list<string> favouriteApps: []
+        property list<string> hiddenApps: []
+      }
+      property JsonObject session: JsonObject {
+        property bool enabled: true
+        property bool gif: true
+        property bool vimKeybinds: false
+        property int dragThreshold: 30
+        property string sleepAction: "hibernate"
+        property string menu: "omacale"
+        property real gifSpeed: 0.7
+        property string gifPath: ""
+        property bool extraButtons: true
+        property string extraStyle: "compact"
+        property list<string> order: ["logout", "shutdown", "gif", "hibernate", "reboot", "lock", "screensaver"]
+        property list<string> hidden: []
+        property JsonObject icons: JsonObject {
+          property string logout: ""
+          property string shutdown: ""
+          property string hibernate: ""
+          property string reboot: ""
+          property string lock: ""
+          property string screensaver: ""
+        }
+        property JsonObject commands: JsonObject {
+          property string logout: ""
+          property string shutdown: ""
+          property string hibernate: ""
+          property string reboot: ""
+          property string lock: ""
+          property string screensaver: ""
+        }
+      }
+      property JsonObject overview: JsonObject {
+        property bool enabled: true
+        property string position: "middle"
+        property bool detached: false
+        property int gap: 48
+        property int rows: 2
+        property int columns: 5
+        property real scale: 0.18
+        property bool hideEmptyRows: true
+        property bool previews: true
+        property bool showIcons: true
+      }
+      property JsonObject sidebar: JsonObject {
+        property bool enabled: true
+        property int width: 430
+      }
+      property JsonObject lock: JsonObject {
+        property bool enabled: false
+        property bool weather: true
+        property bool fetch: true
+        property bool media: true
+        property bool resources: true
+        property bool notifs: true
+        property bool hideNotifs: true
+        property bool recolourLogo: true
+        property bool blur: true
+        property bool useWallpaper: true
+        property bool revealPassword: false
+        property bool autoFellBack: false
+        property string fellBackVersion: ""
+      }
+      property JsonObject utilities: JsonObject {
+        property bool enabled: true
+        property int width: 430
+        property int maxToasts: 4
+        property JsonObject toasts: JsonObject {
+          property bool chargingChanged: true
+          property bool gameModeChanged: true
+          property bool dndChanged: true
+          property bool audioOutputChanged: true
+          property bool audioInputChanged: true
+          property bool nowPlaying: false
+        }
+        property JsonObject toggles: JsonObject {
+          property bool wifi: true
+          property bool bluetooth: true
+          property bool mic: true
+          property bool settings: true
+          property bool gameMode: true
+          property bool dnd: true
+          property bool nightlight: false
+        }
+      }
+      property JsonObject osd: JsonObject {
+        property bool enabled: true
+        property int hideDelay: 2000
+        property bool enableBrightness: true
+        property bool enableMicrophone: false
+        property bool toasts: true
+        // "all" | "focused" | a screen's name (core/Screens.js targetFor).
+        property string screen: "all"
+        property bool autoFellBack: false
+        property string fellBackVersion: ""
+      }
+      property JsonObject display: JsonObject {
+        property int cursorSize: 0
+        property string zeroScaling: "auto"
+        // One brightness for every display (Settings › Display, the Displays card).
+        property bool linkBrightness: false
+        // Open the display-switch menu when a display is connected.
+        property bool quickOnConnect: false
+        // Night light (services/NightLight.qml): temperature when on, and
+        // the schedule ("off", "sun" = sunset to sunrise, "custom").
+        property int nightTemp: 4000
+        property string nightSchedule: "off"
+        property string nightFrom: "20:00"
+        property string nightTo: "07:00"
+      }
+      property JsonObject background: JsonObject {
+        // Screens without the desktop clock and visualiser.
+        property list<string> excludedScreens: []
+        property JsonObject desktopClock: JsonObject {
+          property bool enabled: false
+          property real scale: 1.0
+          property string position: "bottom-right"
+          property bool invertColors: false
+          property JsonObject background: JsonObject {
+            property bool enabled: false
+            property real opacity: 0.7
+            property bool blur: true
+          }
+          property JsonObject shadow: JsonObject {
+            property bool enabled: true
+            property real opacity: 0.7
+            property real blur: 0.4
+          }
+        }
+        property JsonObject visualiser: JsonObject {
+          property bool enabled: false
+          property bool autoHide: true
+          property bool blur: false
+          property real rounding: 1
+          property real spacing: 1
+        }
+      }
+      property JsonObject general: JsonObject {
+        property bool clock24: true
+        property string weatherLocation: ""
+        property string units: "metric"
+      }
+      property JsonObject notifs: JsonObject {
+        // Where the toasts show: "all" | "focused" | a screen's name.
+        property string screen: "all"
+        property int groupPreviewNum: 3
+        property bool openExpanded: false
+        property JsonObject popups: JsonObject {
+          property bool enabled: true
+          property int width: 430
+        }
+        property bool autoFellBack: false
+        property string fellBackVersion: ""
+      }
+      property JsonObject services: JsonObject {
+        property int mediaUpdateInterval: 500
+        property int resourceUpdateInterval: 1000
+        property int volumeStep: 5
+        property int brightnessStep: 5
+        property int visualiserBars: 60
+      }
+      property JsonObject liquid: JsonObject {
+        property bool enabled: false
+        property string preset: "balanced"
+        property string style: "slide"
+        property JsonObject drawers: JsonObject {
+          property bool dashboard: true
+          property bool launcher: true
+          property bool session: true
+          property bool utilities: true
+          property bool sidebar: true
+          property bool popouts: true
+          property bool osd: true
+          property bool settings: true
+          property bool overview: true
+        }
+        property real stiffness: 170
+        property real damping: 18
+        property real bulge: 0.6
+        property bool neck: true
+        property real neckWidth: 20
+        property real narrow: 0.07
+        property bool rounding: true
+        property real sag: 220
+        property real wobble: 260
+        property JsonObject detach: JsonObject {
+          property bool neckBreak: true
+          property bool ripples: true
+          property bool stray: true
+        }
+      }
+      property JsonObject morph: JsonObject {
+        property bool enabled: false
+      }
+      property JsonObject glass: JsonObject {
+        property bool enabled: false
+        property real opacity: 0.36
+        property string tone: "milk"
+        property real toneAmount: 0.35
+        property real light: 1.0
+        property bool pointer: true
+        property bool tuneBlur: true
+        property int frost: 5
+        property real bevel: 18
+        property bool lens: true
+        property real lensFrost: 0.3
+        property real dome: 0.35
+        property real refraction: 1.0
+        property real dispersion: 0.35
+        property bool motion: true
+        property bool nested: true
+      }
+    }
+  }
+}
