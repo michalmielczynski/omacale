@@ -61,6 +61,13 @@ OPTIONS = [
     ("local_fire_department", "Flame", "material", "local_fire_department"),
 ]
 
+# Logos with no outline at all: a rounded box with a contrasting letter, drawn
+# natively by LogoIcon. Listed here so Settings › Taskbar › Logo icon offers
+# them next to the generated ones; they go at the end, after the path outlines.
+LETTERS = [
+    ("menu_m", "Menu M", "M"),
+]
+
 # Extra weight for logos that read as hairlines at bar size: a stroke of the
 # fill colour, this wide in BOX units (so ~1px per 45 at the bar's ~22px),
 # added on both sides of every edge. Picked per logo from renders at bar
@@ -172,6 +179,9 @@ def main():
         ps = ", ".join("[%s, %s]" % (js_str(r), js_str(d)) for r, d in paths)
         extra = ", bold: %d" % bold if bold else ""
         entries.append('  { id: "%s", label: "%s", kind: "path", aspect: %.3f%s, paths: [%s] }' % (oid, label, aspect, extra, ps))
+    for oid, label, letter in LETTERS:
+        entries.append('  { id: "%s", label: "%s", kind: "letter", letter: %s }'
+                       % (oid, label, js_str(letter)))
 
     with open(OUT, "w") as f:
         f.write(""".pragma library
@@ -189,6 +199,8 @@ def main():
 //                   (box units) to thicken a logo that reads as a hairline
 //         "grid" -> Omarchy's rectilinear glyph on its 1024 grid (y up),
 //                   snapped to whole pixels by LogoIcon
+//         "letter" -> a rounded box with a contrasting letter, drawn natively
+//                     by LogoIcon; nothing to trim, so no outline here
 var box = %d
 var options = [
 %s

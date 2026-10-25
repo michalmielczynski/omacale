@@ -20,6 +20,7 @@ Item {
   property color bottomColour: Colours.m3onSurface
 
   readonly property var opt: Logos.byId(value)
+  readonly property bool isLetter: opt.kind === "letter"
   readonly property int px: Math.max(1, Math.round(size))
   // Same area for every logo, not the same longest side: a wide or tall
   // logo fitted into the square would look smaller than a square one. So it
@@ -44,7 +45,6 @@ Item {
   function roleColour(role) {
     return role === "top" ? topColour : role === "bottom" ? bottomColour : colour
   }
-
   // Omarchy's mark, rebuilt on the pixel grid. The glyph is all 70-unit
   // lines and gaps on a 1024 grid (bands at 0/70/140/210 from each edge) with
   // one-unit connectors and notches around the middle; scaled as-is, its
@@ -72,6 +72,7 @@ Item {
 
   readonly property string svg: {
     const o = opt
+    if (root.isLetter) return ""
     if (o.kind === "grid") {
       return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + px + ' ' + px + '">'
         + '<path ' + fill(colour) + ' d="' + gridPath(o.grid, px) + '"/></svg>'
@@ -85,12 +86,38 @@ Item {
   Image {
     // Whole-pixel size and position: a half-pixel offset is what makes small
     // icons look soft.
+    visible: !root.isLetter
     x: Math.round((root.width - width) / 2)
     y: Math.round((root.height - height) / 2)
     width: root.drawPx
     height: root.drawPx
     sourceSize: Qt.size(root.drawPx, root.drawPx)
     smooth: true
-    source: "data:image/svg+xml;utf8," + encodeURIComponent(root.svg)
+    source: root.isLetter ? "" : "data:image/svg+xml;utf8," + encodeURIComponent(root.svg)
+  }
+
+  // kind "letter": the Omarchy menu mark, an "M" on a rounded tile. Rectangle
+  // + native Text rather than Shape or an SVG: at bar size only whole-pixel
+  // geometry and native hinting stay sharp (Qt 6.12's Shapes has no
+  // PathRectangle, so a Shape would need hand-written arcs for one radius).
+  Rectangle {
+    visible: root.isLetter
+    anchors.centerIn: parent
+    width: root.px
+    height: root.px
+    radius: Math.max(3, Math.round(root.px * 0.24))
+    color: Colours.m3primaryContainer
+  }
+  Text {
+    visible: root.isLetter
+    anchors.centerIn: parent
+    text: root.opt.letter || "M"
+    color: Colours.m3onPrimaryContainer
+    font.family: Tk.sans
+    font.pixelSize: Math.round(root.px * 0.66)
+    font.bold: true
+    renderType: Text.NativeRendering
+    horizontalAlignment: Text.AlignHCenter
+    verticalAlignment: Text.AlignVCenter
   }
 }
