@@ -1327,11 +1327,21 @@ Scope {
 
       // Krawedz, z ktorej wysuwa sie sidebar: prawa (lewa gdy bar siedzi po
       // prawej), przy tym koncu ekranu gdzie jest jego gora. Wasiki pasek — ten
-      // sam gest co pociagniecie od krawedzi (handleDrag).      function inSidebarCorner(x, y) {
+      // sam gest co pociagniecie od krawedzi (handleDrag).      // Róg, z którego wysuwa się sidebar: przy jego krawędzi (przeciwnej baremu —
+      // bar po lewej przesuwa panel na prawo i na odwrót), przy tym końcu ekranu,
+      // gdzie jest góra panelu. Waski pasek `Tk.barWidth+8`, ten sam gest co
+      // pociagniecie od krawedzi (handleDrag); warunek na `along` sprawia, ze róg
+      // jest jeden, a nie cala krawedzia — dolny przejmuje utilities.
+      function inSidebarCorner(x, y) {
         const reach = Tk.barWidth + 8
-        const edge = scope.mirror ? x <= reach : x >= win.width - reach
-        const along = scope.flipV ? y >= win.height - reach : y <= reach
-        return edge && along
+        // Bok panelu: przy krawedzi ekranu, ale nie tam gdzie bar — bar po lewej
+        // przesuwa sidebar na prawo (inaczej rog bylby pod ikonami).
+        const side = scope.barPos === "left" ? x >= win.width - reach : x <= reach
+        if (!side) return false
+        // Goracy koniec: tam gdzie gora panelu. Bar na gole przesuwa ja w dol
+        // (flipV), bar na dole zostawia ja u gory — nigdy ten sam rog co utilities.
+        const atBottom = scope.barPos === "bottom" || scope.flipV
+        return atBottom ? y >= win.height - reach : y <= reach
       }
       // Sam panel: dopóki kursor jest w jego obrebie, sidebar zostaje otwarty —
       // inaczej znikalby w polowie ruchu od rogu do srodka szuflady.
@@ -1467,12 +1477,10 @@ Scope {
             scope.osd = showOsd
           }
         }
-        // Notifications sidebar: hover its edge — for a bar on top/right that is
-        // the top-right corner, which is where Caelestia's hover lives too. Held
-        // open while the pointer is inside it, closed once off both (same rule as
-        // utilities and the bar popouts). Not while another drawer owns that
-        // corner: a bottom bar moves utilities there, and keyboard navigation
-        // keeps its drawer until the user leaves it.
+        // Szuflada powiadomień: hover jej rogu — przy barze na lewo/górze jest to
+        // prawy górny róg, tam gdzie Caelestia też go ma. Trzymana, dopóki kursor
+        // jest w panelu; puszczona, gdy wyjdzie poza róg i panel (ta sama zasada co
+        // utilities i popouty bara). Otwarta klawiszem/gestem zostaje (sidebarShortcut).
         const sbHoverOn = !scope.cfg.sidebar || scope.cfg.sidebar.showOnHover !== false
         if (sbHoverOn && (!scope.cfg.sidebar || scope.cfg.sidebar.enabled) && !scope.sidebarShortcut) {
           const keep = inSidebarPanel(x, y)
