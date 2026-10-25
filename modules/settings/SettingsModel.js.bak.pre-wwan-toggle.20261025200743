@@ -1,0 +1,703 @@
+.pragma library
+
+// Omacale settings, laid out like Caelestia's Nexus: top-level pages grouped
+// by category in the navigation pane, sub-pages opened from "nav" rows.
+//
+// Row types:
+//   section  { text }
+//   toggle   { key, label, subtext }
+//   stepper  { key, label, subtext, from, to, step }
+//   slider   { key, label, icon, from, to, step, unit: "%" | "x" | "px", commit?: "release" }
+//   select   { key, label, subtext, options: [{ value, label, icon }] }
+//   text     { key, label, subtext, placeholder }
+//   nav      { icon, label, subtext, page, status? }
+//   custom   { comp }  — rendered by a dedicated component
+// Any row can carry `when: { key, value }` (or a list of them, all of which
+// must hold); it is dimmed and inert unless that setting has that value, or
+// left out altogether with `hide: true`.
+
+// "00:00" … "23:30", for the night light's custom times.
+function halfHours() {
+  var out = []
+  for (var h = 0; h < 24; h++) for (var m = 0; m < 60; m += 30) {
+    var t = (h < 10 ? "0" : "") + h + ":" + (m ? "30" : "00")
+    out.push({ value: t, label: t })
+  }
+  return out
+}
+
+var LIQUID_ON = { key: "liquid.enabled", value: true }
+var LIQUID_CUSTOM = [LIQUID_ON, { key: "liquid.preset", value: "custom" }]
+var GLASS_ON = { key: "glass.enabled", value: true }
+
+// Does a row's `when` hold, `get` reading a setting.
+// A list may reach here as QML's own sequence, which Array.isArray doesn't
+// know, so a single condition is told by its `key`.
+function whenHolds(when, get) {
+  if (!when) return true
+  var all = when.key !== undefined ? [when] : when
+  for (var i = 0; i < all.length; i++) if (get(all[i].key) !== all[i].value) return false
+  return true
+}
+
+var pages = [
+  {
+    id: "style", label: "Wallpaper & style", icon: "palette", category: "appearance",
+    description: "Palette, scheme, transparency, scale",
+    rows: [
+      { type: "custom", comp: "preview" },
+      { type: "nav", icon: "wallpaper", label: "Wallpapers", subtext: "Every wallpaper of the current theme", page: "wallpapers" },
+      { type: "nav", icon: "palette", label: "Themes", subtext: "Every installed Omarchy theme", page: "themes" },
+      { type: "section", text: "Colours" },
+      { type: "select", key: "appearance.palette", label: "Palette", subtext: "Material colours generated from a seed, or the Omarchy theme's own colours", options: [
+        { value: "material", label: "Material", icon: "palette" },
+        { value: "omarchy", label: "Omarchy", icon: "format_paint" }
+      ] },
+      { type: "custom", comp: "seeds", when: { key: "appearance.palette", value: "material" } },
+      { type: "toggle", key: "appearance.seedFollowsTheme", when: { key: "appearance.palette", value: "material" }, label: "Follow theme switches", subtext: "Switching Omarchy theme drops a custom seed picked under another theme" },
+      { type: "toggle", key: "appearance.omarchySurfaces", when: { key: "appearance.palette", value: "material" }, label: "Colour Omarchy's menus too", subtext: "Omarchy's own menus, popups, notifications and pickers in these colours (a marked block in ~/.config/omarchy/shell.toml, removed when off). Their accent stays the theme's" },
+      { type: "select", key: "appearance.variant", when: { key: "appearance.palette", value: "material" }, label: "Scheme", subtext: "How the palette is built from the seed colour", options: [
+        { value: "tonalspot", label: "Tonal spot", icon: "palette" },
+        { value: "vibrant", label: "Vibrant", icon: "colors" },
+        { value: "expressive", label: "Expressive", icon: "gradient" },
+        { value: "fidelity", label: "Fidelity", icon: "filter_vintage" },
+        { value: "content", label: "Content", icon: "image" },
+        { value: "fruitsalad", label: "Fruit salad", icon: "nutrition" },
+        { value: "rainbow", label: "Rainbow", icon: "looks" },
+        { value: "neutral", label: "Neutral", icon: "contrast" },
+        { value: "monochrome", label: "Monochrome", icon: "tonality" }
+      ] },
+      { type: "select", key: "appearance.mode", when: { key: "appearance.palette", value: "material" }, label: "Mode", subtext: "Light or dark surfaces", options: [
+        { value: "auto", label: "Follow theme", icon: "brightness_auto" },
+        { value: "dark", label: "Dark", icon: "dark_mode" },
+        { value: "light", label: "Light", icon: "light_mode" }
+      ] },
+      { type: "section", text: "Transparency" },
+      { type: "toggle", key: "appearance.transparency.enabled", label: "Transparency", subtext: "Translucent frame and drawers with background blur" },
+      { type: "slider", key: "appearance.transparency.base", label: "Surface opacity", icon: "opacity", from: 0.3, to: 1, step: 0.01, unit: "%" },
+      { type: "slider", key: "appearance.transparency.layers", label: "Card opacity", icon: "layers", from: 0.1, to: 1, step: 0.01, unit: "%" },
+      { type: "section", text: "Scale" },
+      { type: "select", key: "appearance.scale.source", label: "Interface scale", subtext: "Default follows Omarchy's font size", options: [
+        { value: "omarchy", label: "Default", icon: "sync" },
+        { value: "custom", label: "Custom", icon: "tune" }
+      ] },
+      // Presets rather than a slider: Settings re-lays itself out at the new
+      // size, which would pull a slider out from under the pointer.
+      { type: "select", key: "appearance.scale.ui", when: { key: "appearance.scale.source", value: "custom" }, label: "Size", subtext: "Text, icons, spacing, the bar and the drawers", options: [
+        { value: "0.75", label: "75%" },
+        { value: "0.85", label: "85%" },
+        { value: "0.9", label: "90%" },
+        { value: "1", label: "100%" },
+        { value: "1.1", label: "110%" },
+        { value: "1.25", label: "125%" },
+        { value: "1.5", label: "150%" }
+      ] },
+      { type: "slider", key: "appearance.scale.font", label: "Text size", icon: "format_size", from: 0.5, to: 1.5, step: 0.05, unit: "x", commit: "release" },
+      { type: "slider", key: "appearance.scale.padding", label: "Padding", icon: "padding", from: 0.5, to: 1.5, step: 0.05, unit: "x", commit: "release" },
+      { type: "slider", key: "appearance.scale.spacing", label: "Spacing", icon: "space_bar", from: 0.5, to: 1.5, step: 0.05, unit: "x", commit: "release" },
+      { type: "slider", key: "appearance.scale.rounding", label: "Rounding", icon: "rounded_corner", from: 0, to: 1.5, step: 0.05, unit: "x", commit: "release" }
+    ]
+  },
+  {
+    id: "frame", label: "Frame & motion", icon: "rounded_corner", category: "appearance",
+    description: "Border, rounding, shadow, animation speed",
+    rows: [
+      { type: "section", text: "Frame" },
+      { type: "slider", key: "border.thickness", label: "Border thickness", icon: "border_outer", from: 0, to: 30, step: 1, unit: "px" },
+      { type: "slider", key: "border.rounding", label: "Corner rounding (at 100% scale)", icon: "rounded_corner", from: 0, to: 48, step: 1, unit: "px" },
+      { type: "slider", key: "border.smoothing", label: "Drawer blending (at 100% scale)", icon: "join", from: 2, to: 40, step: 1, unit: "px" },
+      { type: "toggle", key: "appearance.shadow", label: "Shadow", subtext: "Soft shadow under the frame and drawers" },
+      { type: "section", text: "Motion" },
+      { type: "slider", key: "appearance.animScale", label: "Animation duration", icon: "animation", from: 0.25, to: 2, step: 0.05, unit: "x" },
+      { type: "slider", key: "appearance.deformScale", label: "Drawer stretch", icon: "motion_blur", from: 0, to: 3, step: 0.1, unit: "x" },
+      { type: "nav", icon: "water_drop", label: "Motion", subtext: "Caelestia's curves, liquid springs or morph", page: "liquid", status: "motion" },
+      { type: "nav", icon: "blur_on", label: "Glass", subtext: "Translucent drawers lit on the edge", page: "glass", status: "glass.enabled" }
+    ]
+  },
+  {
+    // Omacale's own (core/Glass.qml): Vitreus's glass on Caelestia's
+    // drawers. Off, nothing on this page changes anything.
+    id: "glass", label: "Glass", icon: "blur_on", category: "appearance",
+    description: "Translucent drawers lit on the edge",
+    rows: [
+      { type: "toggle", key: "glass.enabled", label: "Glass", subtext: "The frame and drawers turn to glass over Hyprland's blur, lit along their edge. Off, they are drawn as Caelestia's" },
+      { type: "section", text: "Glass", when: GLASS_ON },
+      { type: "slider", key: "glass.opacity", when: GLASS_ON, label: "Opacity", icon: "opacity", from: 0.3, to: 1, step: 0.01, unit: "%" },
+      { type: "select", key: "glass.tone", when: GLASS_ON, label: "Tone", icon: "contrast", subtext: "Frosted glass lifts what is behind towards white, as Vitreus's does; smoked glass darkens it", options: [
+        { value: "milk", label: "Frosted", icon: "ac_unit" },
+        { value: "clear", label: "Clear", icon: "circle" },
+        { value: "smoke", label: "Smoked", icon: "dark_mode" }
+      ] },
+      { type: "slider", key: "glass.toneAmount", when: [GLASS_ON, { key: "glass.tone", value: "milk" }], hide: true, label: "Frost", icon: "gradient", from: 0, to: 1, step: 0.05, unit: "%" },
+      { type: "slider", key: "glass.toneAmount", when: [GLASS_ON, { key: "glass.tone", value: "smoke" }], hide: true, label: "Smoke", icon: "gradient", from: 0, to: 1, step: 0.05, unit: "%" },
+      { type: "section", text: "Lens", when: GLASS_ON },
+      { type: "toggle", key: "glass.lens", when: GLASS_ON, label: "Real glass", subtext: "The glass shows what is behind it itself -- the wallpaper and the windows, rebuilt from their own captures -- bent at the edge, frosted its own way, toned and magnified. Off, it is a tint over Hyprland's blur" },
+      { type: "slider", key: "glass.lensFrost", when: [GLASS_ON, { key: "glass.lens", value: true }], label: "Frost", icon: "blur_on", subtext: "0 is clear glass", from: 0, to: 1, step: 0.05, unit: "%" },
+      { type: "slider", key: "glass.refraction", when: [GLASS_ON, { key: "glass.lens", value: true }], label: "Refraction", icon: "lens_blur", from: 0, to: 2, step: 0.05, unit: "x" },
+      { type: "slider", key: "glass.dispersion", when: [GLASS_ON, { key: "glass.lens", value: true }], label: "Colour fringes", icon: "looks", from: 0, to: 1, step: 0.05, unit: "%" },
+      { type: "slider", key: "glass.dome", when: [GLASS_ON, { key: "glass.lens", value: true }], label: "Magnify", icon: "zoom_in", from: 0, to: 1, step: 0.05, unit: "%" },
+      { type: "toggle", key: "glass.motion", when: [GLASS_ON, { key: "glass.lens", value: true }], label: "Liquid while moving", subtext: "A drawer or card that moves bends and splits the light harder for a moment, and settles as it stops" },
+      { type: "toggle", key: "glass.nested", when: [GLASS_ON, { key: "glass.lens", value: true }], label: "Glass cards", subtext: "The cards in a drawer are clear glass of their own, bending the drawer's glass along their edge. Off, they are a tint" },
+      { type: "slider", key: "glass.bevel", when: GLASS_ON, label: "Bevel", icon: "rounded_corner", from: 6, to: 40, step: 1, unit: "px" },
+      { type: "section", text: "Hyprland's blur", when: GLASS_ON },
+      { type: "toggle", key: "glass.tuneBlur", when: GLASS_ON, label: "Tune Hyprland's blur for glass", subtext: "Behind the toasts, and the glass without the lens. While glass is on: no grain, natural colour, the frost below. Your own blur settings come back when it is off" },
+      { type: "slider", key: "glass.frost", when: [GLASS_ON, { key: "glass.tuneBlur", value: true }], label: "Blur", icon: "blur_on", from: 1, to: 12, step: 1 },
+      { type: "section", text: "Light", when: GLASS_ON },
+      { type: "slider", key: "glass.light", when: GLASS_ON, label: "Edge light", icon: "flare", from: 0, to: 2, step: 0.05, unit: "x" },
+      { type: "toggle", key: "glass.pointer", when: GLASS_ON, label: "Light follows the pointer", subtext: "Over a drawer the light comes from the pointer instead of the top left" }
+    ]
+  },
+  {
+    // Omacale's own (core/Liquid.qml, core/Morph.qml): liquid or
+    // morph motion on Caelestia's drawers. On Caelestia's, nothing on
+    // this page changes anything.
+    id: "liquid", label: "Motion", icon: "water_drop", category: "appearance",
+    description: "Caelestia, liquid or morph motion",
+    rows: [
+      { type: "custom", comp: "liquidPreview" },
+      { type: "custom", comp: "motionStyle", label: "Style", icon: "animation", subtext: "How drawers come and go: Caelestia's curves, liquid springs, or morph: one panel at a time, reshaping into the next", options: [
+        { value: "caelestia", label: "Caelestia", icon: "motion_photos_on" },
+        { value: "liquid", label: "Liquid", icon: "water_drop" },
+        { value: "morph", label: "Morph", icon: "animation" }
+      ] },
+      { type: "section", text: "Springs", when: LIQUID_ON, hide: true },
+      { type: "custom", comp: "liquidPreset", when: LIQUID_ON, hide: true, label: "Preset", icon: "water_drop", subtext: "How lively the springs are", options: [
+        { value: "subtle", label: "Subtle", icon: "water" },
+        { value: "balanced", label: "Balanced", icon: "water_drop" },
+        { value: "bouncy", label: "Bouncy", icon: "bubble_chart" },
+        { value: "custom", label: "Custom", icon: "tune" }
+      ] },
+      { type: "select", key: "liquid.style", when: LIQUID_ON, hide: true, label: "Drawers come out", icon: "move_down", subtext: "Slide out of the frame, or grow out of it from a narrow drop (the sidebar, utilities, Settings and the overview keep their own way)", options: [
+        { value: "slide", label: "Slide", icon: "swipe_down" },
+        { value: "drop", label: "Drop", icon: "water_drop" }
+      ] },
+      { type: "section", text: "Custom", when: LIQUID_CUSTOM, hide: true },
+      { type: "slider", key: "liquid.stiffness", when: LIQUID_CUSTOM, hide: true, label: "Stiffness", icon: "speed", from: 60, to: 600, step: 5 },
+      { type: "slider", key: "liquid.damping", when: LIQUID_CUSTOM, hide: true, label: "Damping", icon: "airwave", from: 4, to: 60, step: 1 },
+      { type: "slider", key: "liquid.bulge", when: LIQUID_CUSTOM, hide: true, label: "Overshoot bulge", icon: "expand", from: 0, to: 2, step: 0.05, unit: "x" },
+      { type: "slider", key: "liquid.neckWidth", when: LIQUID_CUSTOM, hide: true, label: "Neck width (at 100% scale)", icon: "join", from: 0, to: 60, step: 1, unit: "px" },
+      { type: "slider", key: "liquid.narrow", when: LIQUID_CUSTOM, hide: true, label: "Narrower on the way", icon: "compress", from: 0, to: 0.3, step: 0.01, unit: "%" },
+      { type: "slider", key: "liquid.sag", when: LIQUID_CUSTOM, hide: true, label: "Sag on landing", icon: "south", from: 0, to: 600, step: 10 },
+      { type: "slider", key: "liquid.wobble", when: LIQUID_CUSTOM, hide: true, label: "Wobble on landing", icon: "vibration", from: 0, to: 800, step: 10 },
+      { type: "section", text: "Shape", when: LIQUID_ON, hide: true },
+      { type: "toggle", key: "liquid.neck", when: LIQUID_ON, hide: true, label: "Liquid neck", subtext: "A moving drawer is joined to the frame by a neck that is thickest halfway" },
+      { type: "toggle", key: "liquid.rounding", when: LIQUID_ON, hide: true, label: "Round as a drop", subtext: "A drawer starts round and squares up as it grows" },
+      { type: "section", text: "Drawers", when: LIQUID_ON, hide: true },
+      { type: "toggle", key: "liquid.drawers.dashboard", when: LIQUID_ON, hide: true, label: "Dashboard" },
+      { type: "toggle", key: "liquid.drawers.launcher", when: LIQUID_ON, hide: true, label: "Launcher", subtext: "And the clipboard preview beside it" },
+      { type: "toggle", key: "liquid.drawers.popouts", when: LIQUID_ON, hide: true, label: "Bar popouts" },
+      { type: "toggle", key: "liquid.drawers.sidebar", when: LIQUID_ON, hide: true, label: "Sidebar", subtext: "Its spring and neck; it keeps its shape, which utilities share" },
+      { type: "toggle", key: "liquid.drawers.utilities", when: LIQUID_ON, hide: true, label: "Utilities" },
+      { type: "toggle", key: "liquid.drawers.session", when: LIQUID_ON, hide: true, label: "Session menu" },
+      { type: "toggle", key: "liquid.drawers.osd", when: LIQUID_ON, hide: true, label: "OSD" },
+      { type: "toggle", key: "liquid.drawers.settings", when: LIQUID_ON, hide: true, label: "Settings" },
+      { type: "toggle", key: "liquid.drawers.overview", when: LIQUID_ON, hide: true, label: "Overview" },
+      { type: "section", text: "Detach", when: LIQUID_ON, hide: true },
+      { type: "toggle", key: "liquid.detach.neckBreak", when: LIQUID_ON, hide: true, label: "Neck break", subtext: "The window info panel and Settings stay joined to the bar by a thread that stretches and snaps" },
+      { type: "toggle", key: "liquid.detach.ripples", when: [LIQUID_ON, { key: "liquid.detach.neckBreak", value: true }], hide: true, label: "Ripples", subtext: "Two ripples run along the bar where it snapped" },
+      { type: "toggle", key: "liquid.detach.stray", when: [LIQUID_ON, { key: "liquid.detach.neckBreak", value: true }], hide: true, label: "Stray drop", subtext: "A small drop is left hanging for a moment" }
+    ]
+  },
+  {
+    id: "network", label: "Network", icon: "wifi", category: "connectivity",
+    description: "Wi-Fi, ethernet",
+    rows: [ { type: "custom", comp: "network" } ]
+  },
+  {
+    // Caelestia's nexus has a "Display" stub (PageRegistry, TODO); this is Omacale's.
+    id: "display", label: "Display", icon: "monitor", category: "connectivity",
+    description: "Arrangement, brightness, profiles, night light",
+    // The screens and the selected one; the rest is on the sub-pages below
+    // (display*), each reached from a row on the page.
+    rows: [ { type: "custom", comp: "display" } ]
+  },
+  {
+    id: "bluetooth", label: "Connected devices", icon: "devices_other", noFill: true, category: "connectivity",
+    description: "Bluetooth, pairing",
+    rows: [ { type: "custom", comp: "bluetooth" } ]
+  },
+  {
+    id: "audio", label: "Audio", icon: "volume_up", category: "connectivity",
+    description: "App volumes, sound devices",
+    rows: [ { type: "custom", comp: "audio" } ]
+  },
+  {
+    id: "panels", label: "Panels", icon: "dock_to_bottom", category: "shell",
+    description: "Dashboard, taskbar, launcher, sidebar",
+    rows: [
+      { type: "nav", icon: "dashboard", label: "Dashboard", page: "dashboard", status: "dashboard.enabled" },
+      { type: "nav", icon: "dock_to_bottom", label: "Taskbar", page: "taskbar", status: "bar" },
+      { type: "nav", icon: "apps", label: "Launcher", page: "launcher", status: "launcher.enabled" },
+      { type: "nav", icon: "dock_to_right", label: "Sidebar", page: "sidebar", status: "sidebar.enabled" },
+      { type: "nav", icon: "construction", label: "Utilities", page: "utilities", status: "utilities.enabled" },
+      { type: "nav", icon: "grid_view", label: "Overview", page: "overview", status: "overview.enabled" },
+      { type: "nav", icon: "power_settings_new", label: "Session", page: "session", status: "session.enabled" },
+      { type: "nav", icon: "lock", label: "Lock screen", page: "lock", status: "lock.enabled" },
+      { type: "nav", icon: "volume_up", label: "OSD", page: "osd", status: "osd.enabled" },
+      { type: "nav", icon: "wallpaper", label: "Desktop", page: "desktop", subtext: "Clock and audio visualiser on the wallpaper" }
+    ]
+  },
+  {
+    id: "apps", label: "Apps", icon: "apps", category: "shell",
+    description: "Default apps, favourites, hidden apps",
+    rows: [ { type: "custom", comp: "apps" } ]
+  },
+  {
+    id: "plugins", label: "Plugins", icon: "extension", category: "shell",
+    description: "Built-in and third-party Omarchy plugins",
+    rows: [ { type: "custom", comp: "plugins" } ]
+  },
+  {
+    id: "services", label: "Services", icon: "settings_suggest", category: "shell",
+    description: "Notifications, poll intervals, scroll steps",
+    rows: [
+      { type: "section", text: "Notifications" },
+      { type: "nav", icon: "notifications", label: "Notifications", subtext: "Grouping in the sidebar", page: "notifications" },
+      { type: "section", text: "Polling" },
+      { type: "stepper", key: "services.mediaUpdateInterval", label: "Media refresh", subtext: "How often the media position updates (ms)", from: 100, to: 2000, step: 50 },
+      { type: "stepper", key: "services.resourceUpdateInterval", label: "System stats refresh", subtext: "CPU, memory and GPU update interval (ms)", from: 500, to: 10000, step: 500 },
+      { type: "section", text: "Input increments" },
+      { type: "stepper", key: "services.volumeStep", label: "Volume step", subtext: "Amount the volume changes per scroll (%)", from: 1, to: 50, step: 1 },
+      { type: "section", text: "Service tuning" },
+      { type: "stepper", key: "services.visualiserBars", label: "Visualiser bars", subtext: "Number of bars in the audio visualisers", from: 10, to: 120, step: 2 }
+    ]
+  },
+  {
+    id: "region", label: "Language & region", icon: "globe", category: "shell",
+    description: "Clock format, weather location, units",
+    rows: [
+      { type: "section", text: "Clock" },
+      { type: "toggle", key: "general.clock24", invert: true, label: "12-hour clock", subtext: "AM/PM everywhere: bar, dashboard, weather, notifications, keep awake, recordings" },
+      { type: "section", text: "Weather" },
+      { type: "text", key: "general.weatherLocation", label: "Location", subtext: "City name; empty detects it from your IP", placeholder: "City" },
+      { type: "select", key: "general.units", label: "Units", subtext: "Temperature units", options: [
+        { value: "metric", label: "Celsius", icon: "thermometer" },
+        { value: "imperial", label: "Fahrenheit", icon: "thermostat" }
+      ] }
+    ]
+  },
+  {
+    id: "keybinds", label: "Keybinds", icon: "keyboard", category: "system",
+    description: "Omarchy-style bindings to copy",
+    rows: [ { type: "custom", comp: "keybinds" } ]
+  },
+  {
+    id: "looknfeel", label: "Look'n'feel", icon: "auto_awesome", category: "system",
+    description: "Caelestia's Hyprland styling to load",
+    rows: [ { type: "custom", comp: "looknfeel" } ]
+  },
+  {
+    id: "about", label: "About", icon: "info", category: "about",
+    description: "Omacale, system, reset",
+    rows: [ { type: "custom", comp: "about" } ]
+  }
+]
+
+var subpages = {
+  // ---- Settings › Display's sub-pages (pages/Display*.qml); every display
+  // setting lives here, other pages link to them.
+  displayProfiles: { title: "Profiles", rows: [
+    { type: "custom", comp: "displayProfiles" },
+    { type: "section", text: "Connecting a screen" },
+    { type: "toggle", key: "display.quickOnConnect", label: "Ask what to do", subtext: "Extend / Mirror / Only laptop / Only external when a screen is plugged in (also the optional display key, Settings › Keybinds)" }
+  ] },
+  displayWorkspaces: { title: "Workspaces", rows: [ { type: "custom", comp: "displayWorkspaces" } ] },
+  displayBrightness: { title: "Brightness", rows: [
+    { type: "custom", comp: "displayBrightnessList" },
+    { type: "section", text: "Together" },
+    { type: "toggle", key: "display.linkBrightness", label: "Same brightness on every screen", subtext: "One slider and the bar's scroll move every screen; the brightness keys too with their optional binds (Settings › Keybinds)" },
+    { type: "section", text: "Scrolling on the bar" },
+    { type: "toggle", key: "bar.scroll.brightness", label: "Scroll to change brightness", subtext: "The bottom half of the bar changes the brightness of the screen it is on" },
+    { type: "stepper", key: "services.brightnessStep", label: "Brightness step", subtext: "How much one scroll changes it (%)", from: 1, to: 50, step: 1 }
+  ] },
+  displayNight: { title: "Night light", rows: [
+    { type: "custom", comp: "displayNight" },
+    { type: "section", text: "Schedule" },
+    { type: "select", key: "display.nightSchedule", label: "Schedule", icon: "schedule", subtext: "Switching it by hand holds until the schedule's next change", options: [
+      { value: "off", label: "Off", icon: "block" }, { value: "sun", label: "Sunset to sunrise", icon: "wb_twilight" }, { value: "custom", label: "Custom times", icon: "schedule" }
+    ] },
+    { type: "select", key: "display.nightFrom", when: { key: "display.nightSchedule", value: "custom" }, label: "From", icon: "bedtime", options: halfHours() },
+    { type: "select", key: "display.nightTo", when: { key: "display.nightSchedule", value: "custom" }, label: "To", icon: "wb_sunny", options: halfHours() }
+  ] },
+  displayShell: { title: "Shell on each screen", rows: [
+    { type: "section", text: "Taskbar" },
+    { type: "custom", comp: "screens", mode: "bar" },
+    { type: "section", text: "Desktop clock and visualiser" },
+    { type: "custom", comp: "screens", mode: "desktop" },
+    { type: "section", text: "Popups" },
+    { type: "custom", comp: "screenSelect", key: "notifs.screen", label: "Notifications", subtext: "Which screens show the notification popups" },
+    { type: "custom", comp: "screenSelect", key: "osd.screen", when: { key: "osd.enabled", value: true }, label: "OSD sliders", subtext: "Which screens show the volume and brightness sliders" }
+  ] },
+  displayText: { title: "Text and cursor", rows: [
+    { type: "custom", comp: "displayTextSize" },
+    { type: "section", text: "Cursor" },
+    // Real cursor theme sizes; a stepper from 0 started at an unusable 4px.
+    { type: "select", key: "display.cursorSize", label: "Cursor size", subtext: "Hyprland draws it at this size times each screen's scale, so it matches on every screen; apps started earlier keep the old size until restarted", options: [
+      { value: "0", label: "Omarchy's", icon: "arrow_selector_tool" },
+      { value: "16", label: "16 px", icon: "arrow_selector_tool" },
+      { value: "20", label: "20 px", icon: "arrow_selector_tool" },
+      { value: "24", label: "24 px", icon: "arrow_selector_tool" },
+      { value: "32", label: "32 px", icon: "arrow_selector_tool" },
+      { value: "40", label: "40 px", icon: "arrow_selector_tool" },
+      { value: "48", label: "48 px", icon: "arrow_selector_tool" },
+      { value: "64", label: "64 px", icon: "arrow_selector_tool" }
+    ] },
+    { type: "select", key: "display.zeroScaling", label: "X11 app scaling", subtext: "Zero scaling keeps X11 apps sharp but small on scaled screens. Needs omacale.lua loaded; lines after it in looknfeel.lua win", options: [
+      { value: "auto", label: "Leave as set", icon: "sync_alt" },
+      { value: "on", label: "Zero scaling (sharp)", icon: "texture" },
+      { value: "off", label: "Scaled (blurry, right size)", icon: "zoom_in" }
+    ] }
+  ] },
+  wallpapers: { title: "Wallpapers", rows: [ { type: "custom", comp: "wallpapers" } ] },
+  themes: { title: "Themes", rows: [ { type: "custom", comp: "wallpapers", themes: true } ] },
+  allApps: { title: "All apps", rows: [ { type: "custom", comp: "allApps" } ] },
+  appInfo: { title: "App info", rows: [ { type: "custom", comp: "appInfo" } ] },
+  pluginInfo: { title: "Plugin", rows: [ { type: "custom", comp: "pluginInfo" } ] },
+  notifications: {
+    title: "Notifications",
+    rows: [
+      { type: "section", text: "Popups" },
+      { type: "custom", comp: "notifs" },
+      { type: "nav", icon: "monitor", label: "Screens", subtext: "Which screens show the popups: in Display › Shell on each screen", page: "displayShell" },
+      { type: "toggle", key: "notifs.popups.enabled", label: "Show popups", subtext: "Draw arriving notifications as Caelestia-style toasts, on top of everything including fullscreen windows. Off, Omarchy draws its own" },
+      { type: "slider", key: "notifs.popups.width", label: "Popup width (at 100% scale)", icon: "notifications", from: 320, to: 600, step: 10, unit: "px" },
+      { type: "section", text: "Toasts" },
+      { type: "stepper", key: "utilities.maxToasts", label: "Toasts shown", subtext: "Small toasts over the utilities corner; more wait their turn", from: 1, to: 10, step: 1 },
+      { type: "toggle", key: "utilities.toasts.chargingChanged", label: "Charger changes", subtext: "When the charger is plugged in or out" },
+      { type: "toggle", key: "utilities.toasts.gameModeChanged", label: "Game mode changes" },
+      { type: "toggle", key: "utilities.toasts.dndChanged", label: "Do not disturb changes" },
+      { type: "toggle", key: "utilities.toasts.audioOutputChanged", label: "Audio output changes", subtext: "The device sound now plays on" },
+      { type: "toggle", key: "utilities.toasts.audioInputChanged", label: "Audio input changes", subtext: "The microphone now in use" },
+      { type: "toggle", key: "utilities.toasts.nowPlaying", label: "Now playing", subtext: "The track each time it changes" },
+      { type: "section", text: "Notifications" },
+      { type: "toggle", key: "notifs.openExpanded", label: "Open expanded", subtext: "Show notification groups and popups expanded by default" },
+      { type: "stepper", key: "notifs.groupPreviewNum", label: "Group preview count", subtext: "Notifications shown per group before collapsing", from: 1, to: 10, step: 1 }
+    ]
+  },
+  networkDetail: { title: "Network details", rows: [ { type: "custom", comp: "networkDetail" } ] },
+  btPair: { title: "Pair new device", rows: [ { type: "custom", comp: "btPair" } ] },
+  btDevice: { title: "Device", rows: [ { type: "custom", comp: "btDevice" } ] },
+  appVolumes: { title: "App volumes", rows: [ { type: "custom", comp: "appVolumes" } ] },
+  taskbar: {
+    title: "Taskbar",
+    rows: [
+      { type: "section", text: "Behaviour" },
+      { type: "select", key: "bar.position", label: "Position", subtext: "Which edge of the screen the bar sits on. Omarchy follows Style \u203a Bar \u203a Position", options: [
+        { value: "left", label: "Left", icon: "align_horizontal_left" },
+        { value: "right", label: "Right", icon: "align_horizontal_right" },
+        { value: "top", label: "Top", icon: "vertical_align_top" },
+        { value: "bottom", label: "Bottom", icon: "vertical_align_bottom" },
+        { value: "omarchy", label: "Omarchy", icon: "sync_alt" }
+      ] },
+      { type: "toggle", key: "bar.persistent", label: "Persistent", subtext: "Keep the bar visible at all times" },
+      { type: "toggle", key: "bar.showOnHover", label: "Show on hover", subtext: "Reveal the bar when the cursor reaches its edge" },
+      { type: "nav", icon: "monitor", label: "Screens", subtext: "Which screens have a bar, and its edge on each: in Display › Shell on each screen", page: "displayShell" },
+      // Everything in the bar, in one list per section: Omacale's items,
+      // Omarchy's widgets and plugins alike (pages/LayoutPage.qml). Each row's
+      // gear opens its own page below.
+      { type: "section", text: "Bar" },
+      { type: "custom", comp: "barLayout" },
+      { type: "section", text: "Scroll actions" },
+      { type: "toggle", key: "bar.scroll.workspaces", label: "Workspaces", subtext: "Scroll over the workspace indicator to switch workspaces" },
+      { type: "toggle", key: "bar.scroll.volume", label: "Volume", subtext: "Scroll on the top half of the bar to adjust volume" },
+      { type: "nav", icon: "brightness_6", label: "Brightness", subtext: "Scrolling on the bottom half, and its step: in Display › Brightness", page: "displayBrightness" }
+    ]
+  },
+  workspaces: {
+    title: "Workspaces",
+    rows: [
+      { type: "stepper", key: "bar.workspaces.shown", label: "Shown", subtext: "Number of workspaces displayed", from: 1, to: 10, step: 1 },
+      { type: "select", key: "bar.workspaces.display", label: "Display", subtext: "How each workspace is drawn", options: [
+        { value: "shapes", label: "Shapes", icon: "category" },
+        { value: "numbers", label: "Numbers", icon: "pin" }
+      ] },
+      { type: "toggle", key: "bar.workspaces.activeIndicator", label: "Active indicator" },
+      { type: "toggle", key: "bar.workspaces.activeTrail", label: "Active trail", subtext: "The indicator's trailing edge lags behind" },
+      { type: "toggle", key: "bar.workspaces.occupiedBg", label: "Occupied background", subtext: "Highlight runs of occupied workspaces" },
+      { type: "toggle", key: "bar.workspaces.showWindows", label: "Show windows", subtext: "Show icons of open windows on each workspace" },
+      { type: "stepper", key: "bar.workspaces.maxWindowIcons", label: "Max window icons", from: 0, to: 10, step: 1 },
+      { type: "section", text: "Special workspaces" },
+      { type: "select", key: "bar.workspaces.specialDisplay", label: "Display", subtext: "How the scratchpad and other special workspaces are drawn while one is open", options: [
+        { value: "icons", label: "Icons", icon: "star" },
+        { value: "star", label: "Star only", icon: "grade" },
+        { value: "letters", label: "Letters", icon: "text_fields" },
+        { value: "shapes", label: "Shapes", icon: "category" }
+      ] },
+      { type: "toggle", key: "bar.workspaces.specialShowWindows", label: "Show windows", subtext: "Show icons of open windows on each special workspace" }
+    ]
+  },
+  overview: {
+    title: "Overview",
+    rows: [
+      { type: "toggle", key: "overview.enabled", label: "Enabled", subtext: "A grid of the workspaces on this monitor, with live window previews. Bind it from Settings \u203a Keybinds" },
+      { type: "select", key: "overview.position", label: "Position", subtext: "Float in the middle of the screen, or grow out of the top or bottom edge", options: [
+        { value: "top", label: "Top", icon: "vertical_align_top" },
+        { value: "middle", label: "Middle", icon: "vertical_align_center" },
+        { value: "bottom", label: "Bottom", icon: "vertical_align_bottom" }
+      ] },
+      { type: "toggle", key: "overview.detached", label: "Detached", subtext: "At the top or bottom, float a little off the edge like the middle position, instead of growing out of the frame" },
+      { type: "slider", key: "overview.gap", when: { key: "overview.detached", value: true }, label: "Detached gap", icon: "height", from: 0, to: 200, step: 4, unit: "px" },
+      { type: "section", text: "Grid" },
+      { type: "stepper", key: "overview.rows", label: "Rows", from: 1, to: 6, step: 1 },
+      { type: "stepper", key: "overview.columns", label: "Columns", from: 1, to: 10, step: 1 },
+      { type: "toggle", key: "overview.hideEmptyRows", label: "Hide empty rows", subtext: "Only draw rows that hold a window or the active workspace" },
+      { type: "slider", key: "overview.scale", label: "Tile size", icon: "grid_view", from: 0.08, to: 0.3, step: 0.01, unit: "%" },
+      { type: "section", text: "Windows" },
+      { type: "toggle", key: "overview.previews", label: "Live previews", subtext: "Draw each window's own surface in its tile" },
+      { type: "toggle", key: "overview.showIcons", label: "App icons", subtext: "Show the app icon over each window" }
+    ]
+  },
+  activeWindow: {
+    title: "Active window",
+    rows: [
+      { type: "toggle", key: "bar.activeWindow.enabled", label: "Show title", subtext: "Rotated window title in the middle of the bar" },
+      { type: "toggle", key: "bar.activeWindow.compact", label: "Compact", subtext: "Show only the last part of titles like 'Page — Browser'" },
+      { type: "toggle", key: "bar.popouts.activeWindow", label: "Popout on hover", subtext: "Show a live window preview when hovering" }
+    ]
+  },
+  tray: {
+    title: "Tray",
+    rows: [
+      { type: "toggle", key: "bar.tray.enabled", label: "Show tray" },
+      { type: "toggle", key: "bar.tray.background", label: "Background", subtext: "Draw a pill behind the tray" },
+      { type: "toggle", key: "bar.tray.recolour", label: "Recolour icons", subtext: "Tint tray icons with the scheme" },
+      { type: "toggle", key: "bar.tray.compact", label: "Always compact", subtext: "Keep the tray behind a chevron that hovering opens. Off, it still collapses on its own when the bar runs out of room" },
+      { type: "toggle", key: "bar.popouts.tray", label: "Popout on hover", subtext: "Show the tray menu when hovering an icon" },
+      { type: "section", text: "Icons" },
+      { type: "custom", comp: "trayIcons" }
+    ]
+  },
+  barButtons: {
+    title: "Logo and power",
+    rows: [
+      { type: "toggle", key: "bar.logo", label: "Logo", subtext: "Icon at the start of the bar; click opens the launcher" },
+      { type: "custom", comp: "logoPicker" },
+      { type: "toggle", key: "bar.power", label: "Power button", subtext: "Opens the session menu" }
+    ]
+  },
+  status: {
+    title: "Status icons",
+    rows: [
+      { type: "section", text: "Visible icons" },
+      { type: "toggle", key: "bar.status.lockStatus", label: "Caps / num lock", subtext: "Only shown while a lock key is on" },
+      { type: "toggle", key: "bar.status.numLock", when: { key: "bar.status.lockStatus", value: true }, label: "Num lock", subtext: "Show num lock too; turn off on a machine without a keypad" },
+      { type: "toggle", key: "bar.status.audio", label: "Audio" },
+      { type: "toggle", key: "bar.status.microphone", label: "Microphone" },
+      { type: "toggle", key: "bar.status.microphoneInUseOnly", label: "Microphone only while recording", subtext: "Hide it until an app opens the microphone" },
+      { type: "toggle", key: "bar.status.kbLayout", label: "Keyboard layout", subtext: "Active layout code; hover to switch layouts" },
+      { type: "toggle", key: "bar.status.network", label: "Network" },
+      { type: "toggle", key: "bar.status.bluetooth", label: "Bluetooth" },
+      { type: "toggle", key: "bar.status.bluetoothConnectedOnly", label: "Bluetooth only when connected", subtext: "Hide the idle bluetooth icon" },
+      { type: "toggle", key: "bar.status.battery", label: "Battery / power profile" },
+      { type: "toggle", key: "bar.status.keepAwake", label: "Keep awake", subtext: "Coffee icon while keep awake is on" },
+      { type: "toggle", key: "bar.status.update", label: "Omarchy updates", subtext: "Shown while an Omarchy update is pending; click runs omarchy update" },
+      { type: "toggle", key: "bar.status.notifications", label: "Notifications", subtext: "Unread count and do-not-disturb state; click opens the sidebar" },
+      { type: "section", text: "Behaviour" },
+      { type: "toggle", key: "bar.popouts.statusIcons", label: "Popout on hover", subtext: "Show a details popout when hovering the status icons" }
+    ]
+  },
+  clock: {
+    title: "Clock",
+    rows: [
+      { type: "toggle", key: "bar.clock.enabled", label: "Show clock", subtext: "Turn off to remove the clock (and the time) from the bar entirely" },
+      { type: "toggle", key: "bar.clock.background", when: { key: "bar.clock.enabled", value: true }, label: "Background" },
+      { type: "toggle", key: "bar.clock.showDate", when: { key: "bar.clock.enabled", value: true }, label: "Show date" },
+      { type: "toggle", key: "bar.clock.showIcon", when: { key: "bar.clock.enabled", value: true }, label: "Show icon" },
+      { type: "toggle", key: "bar.clock.showSeconds", when: { key: "bar.clock.enabled", value: true }, label: "Show seconds" }
+    ]
+  },
+  dashboard: {
+    title: "Dashboard",
+    rows: [
+      { type: "section", text: "General" },
+      { type: "toggle", key: "dashboard.enabled", label: "Enabled" },
+      { type: "toggle", key: "dashboard.showOnHover", label: "Show on hover", subtext: "Reveal when the cursor reaches the top edge" },
+      { type: "toggle", key: "dashboard.clockSeconds", label: "Show clock seconds", subtext: "Display seconds for the clock in the main panel" },
+      { type: "toggle", key: "dashboard.mediaGif", label: "Bongo cat", subtext: "Dance along while media plays" },
+      { type: "section", text: "Media" },
+      { type: "toggle", key: "dashboard.lyrics", label: "Lyrics", subtext: "Synced lyrics from lrclib.net" },
+      { type: "toggle", key: "dashboard.visualiser", label: "Visualiser", subtext: "Audio bars around the cover art (needs cava)" },
+      { type: "section", text: "Tabs" },
+      { type: "toggle", key: "dashboard.tabs.dashboard", label: "Dashboard" },
+      { type: "toggle", key: "dashboard.tabs.media", label: "Media" },
+      { type: "toggle", key: "dashboard.tabs.performance", label: "Performance" },
+      { type: "toggle", key: "dashboard.tabs.weather", label: "Weather" },
+      { type: "section", text: "Performance widgets" },
+      { type: "toggle", key: "dashboard.performance.showBattery", label: "Battery" },
+      { type: "toggle", key: "dashboard.performance.showGpu", label: "GPU" },
+      { type: "toggle", key: "dashboard.performance.showCpu", label: "CPU" },
+      { type: "toggle", key: "dashboard.performance.showMemory", label: "Memory" },
+      { type: "toggle", key: "dashboard.performance.showStorage", label: "Storage" },
+      { type: "toggle", key: "dashboard.performance.showNetwork", label: "Network" }
+    ]
+  },
+  launcher: {
+    title: "Launcher",
+    rows: [
+      { type: "section", text: "General" },
+      { type: "toggle", key: "launcher.enabled", label: "Enabled" },
+      { type: "text", key: "launcher.actionPrefix", label: "Action prefix", subtext: "Prefix used to run actions in the launcher", placeholder: "Prefix" },
+      { type: "text", key: "launcher.menuPrefix", label: "Menu prefix", subtext: "Prefix that opens the Omarchy menu in the launcher", placeholder: "Prefix" },
+      { type: "section", text: "Display" },
+      { type: "stepper", key: "launcher.maxShown", label: "Max items shown", from: 3, to: 12, step: 1 },
+      { type: "stepper", key: "launcher.maxWallpapers", label: "Max wallpapers shown", subtext: "Carousel size for \">wallpaper\" and \">theme\"", from: 1, to: 15, step: 2 },
+      { type: "stepper", key: "launcher.dragThreshold", label: "Drag threshold", subtext: "Pixels dragged up from the bottom edge before it opens", from: 10, to: 200, step: 5 },
+      { type: "section", text: "Behaviour" },
+      { type: "toggle", key: "launcher.vimKeybinds", label: "Vim keybinds", subtext: "Navigate results with Ctrl+J / Ctrl+K" },
+      { type: "toggle", key: "launcher.dangerousActions", label: "Enable dangerous actions", subtext: "Allow actions that shut down or log out" }
+    ]
+  },
+  session: {
+    title: "Session",
+    rows: [
+      { type: "toggle", key: "session.enabled", label: "Enabled" },
+      { type: "select", key: "session.menu", label: "Menu", subtext: "What the session key opens (Settings › Keybinds has the optional Super+Esc and power-key binds)", options: [
+        { value: "omacale", label: "Omacale session", icon: "power_settings_new" },
+        { value: "omarchy", label: "Omarchy menu", icon: "menu" }
+      ] },
+      { type: "select", key: "session.extraStyle", label: "Lock & screensaver style", subtext: "Lock and Screensaver offer everything Omarchy's System menu does: as two small buttons side by side, or full size like the others", options: [
+        { value: "compact", label: "Compact", icon: "view_column" },
+        { value: "full", label: "Full size", icon: "crop_square" }
+      ] },
+      { type: "custom", comp: "sessionPicture", when: { key: "session.gif", value: true } },
+      { type: "slider", key: "session.gifSpeed", when: { key: "session.gif", value: true }, label: "Animation speed", icon: "speed", from: 0.1, to: 2, step: 0.05, unit: "x", commit: "release" },
+      { type: "toggle", key: "session.vimKeybinds", label: "Vim keybinds", subtext: "Move between buttons with Ctrl+J / Ctrl+K" },
+      { type: "stepper", key: "session.dragThreshold", label: "Drag threshold", subtext: "Pixels dragged in from the right edge before it opens", from: 10, to: 200, step: 5 },
+      { type: "select", key: "session.sleepAction", label: "Third button", subtext: "What the download-arrow button does. Falls back to the other one when Omarchy says yours is unavailable, and folds away when neither is", options: [
+        { value: "hibernate", label: "Hibernate", icon: "downloading" },
+        { value: "suspend", label: "Suspend", icon: "bedtime" }
+      ] },
+      { type: "section", text: "Buttons" },
+      { type: "custom", comp: "sessionButtons" },
+      { type: "section", text: "Icons and commands" },
+      { type: "text", key: "session.icons.logout", label: "Logout icon", subtext: "A Material Symbols name", placeholder: "logout" },
+      { type: "text", key: "session.icons.shutdown", label: "Shutdown icon", placeholder: "power_settings_new" },
+      { type: "text", key: "session.icons.hibernate", label: "Sleep icon", placeholder: "follows the third button" },
+      { type: "text", key: "session.icons.reboot", label: "Reboot icon", placeholder: "cached" },
+      { type: "text", key: "session.icons.lock", label: "Lock icon", placeholder: "lock" },
+      { type: "text", key: "session.icons.screensaver", label: "Screensaver icon", placeholder: "slideshow" },
+      { type: "text", key: "session.commands.logout", label: "Logout command", subtext: "Empty runs Omarchy's", placeholder: "omarchy system logout" },
+      { type: "text", key: "session.commands.shutdown", label: "Shutdown command", placeholder: "omarchy system shutdown" },
+      { type: "text", key: "session.commands.hibernate", label: "Sleep command", subtext: "Set, it always runs as it is", placeholder: "Omarchy's suspend / hibernate" },
+      { type: "text", key: "session.commands.reboot", label: "Reboot command", placeholder: "omarchy system reboot" },
+      { type: "text", key: "session.commands.lock", label: "Lock command", placeholder: "omarchy-system-lock" },
+      { type: "text", key: "session.commands.screensaver", label: "Screensaver command", placeholder: "omarchy-launch-screensaver force" }
+    ]
+  },
+  lock: {
+    title: "Lock screen",
+    rows: [
+      { type: "toggle", key: "lock.enabled", label: "Omacale lock screen", subtext: "Draw Omarchy's lock screen the way Caelestia does; Omarchy keeps the session lock and the password check" },
+      { type: "custom", comp: "lock" },
+      { type: "section", text: "Cards" },
+      { type: "toggle", key: "lock.weather", when: { key: "lock.enabled", value: true }, label: "Weather", subtext: "Conditions, temperature and today's high and low" },
+      { type: "toggle", key: "lock.fetch", when: { key: "lock.enabled", value: true }, label: "Fetch", subtext: "Uptime, session and battery beside the logo" },
+      { type: "toggle", key: "lock.media", when: { key: "lock.enabled", value: true }, label: "Media", subtext: "What is playing, with skip and pause" },
+      { type: "toggle", key: "lock.resources", when: { key: "lock.enabled", value: true }, label: "Resources", subtext: "CPU, memory and disk" },
+      { type: "toggle", key: "lock.notifs", when: { key: "lock.enabled", value: true }, label: "Notifications", subtext: "The notification dock, grouped as in the sidebar" },
+      { type: "section", text: "Privacy" },
+      { type: "toggle", key: "lock.hideNotifs", when: { key: "lock.enabled", value: true }, label: "Hide notification contents", subtext: "Show \"Unlock for notifications\" instead of the notifications themselves" },
+      { type: "toggle", key: "lock.revealPassword", when: { key: "lock.enabled", value: true }, label: "Show password button", subtext: "Let the icon in the password field show the characters typed" },
+      { type: "section", text: "Appearance" },
+      { type: "toggle", key: "lock.useWallpaper", when: { key: "lock.enabled", value: true }, label: "Use the wallpaper", subtext: "Show the wallpaper behind the lock instead of a blurred copy of the screen" },
+      { type: "toggle", key: "lock.blur", when: { key: "lock.enabled", value: true }, label: "Blur the wallpaper", subtext: "Blur the wallpaper behind the lock card; the screen copy is always blurred" },
+      { type: "toggle", key: "lock.recolourLogo", when: { key: "lock.enabled", value: true }, label: "Recolour the logo", subtext: "Tint the fetch card's logo with the scheme" }
+    ]
+  },
+  // Caelestia osdconfig.hpp; Caelestia has no Nexus page for it.
+  osd: {
+    title: "OSD",
+    rows: [
+      { type: "toggle", key: "osd.enabled", label: "Omacale OSD", subtext: "Caelestia's sliders out of the edge of the frame, and toasts for every other Omarchy OSD" },
+      { type: "custom", comp: "osd" },
+      { type: "nav", icon: "monitor", label: "Screens", subtext: "Which screens show the sliders: in Display › Shell on each screen", page: "displayShell" },
+      { type: "section", text: "Sliders" },
+      { type: "toggle", key: "osd.enableBrightness", when: { key: "osd.enabled", value: true }, label: "Brightness", subtext: "Shown once Omarchy has reported the display's level" },
+      { type: "toggle", key: "osd.enableMicrophone", when: { key: "osd.enabled", value: true }, label: "Microphone", subtext: "The input volume, and show the OSD when it changes" },
+      { type: "stepper", key: "osd.hideDelay", when: { key: "osd.enabled", value: true }, label: "Hide after", subtext: "How long it stays out after a change (ms)", from: 500, to: 10000, step: 250 },
+      { type: "section", text: "Toasts" },
+      { type: "toggle", key: "osd.toasts", when: { key: "osd.enabled", value: true }, label: "Other OSD messages", subtext: "Media, microphone, keyboard backlight, input devices, power and the rest as toasts; off, Omarchy draws them" }
+    ]
+  },
+  // Caelestia backgroundconfig.hpp; Caelestia has no Nexus page for it.
+  desktop: {
+    title: "Desktop",
+    rows: [
+      { type: "nav", icon: "monitor", label: "Screens", subtext: "Which screens show the clock and visualiser: in Display › Shell on each screen", page: "displayShell" },
+      { type: "section", text: "Desktop clock" },
+      { type: "toggle", key: "background.desktopClock.enabled", label: "Desktop clock", subtext: "A large clock and date drawn on the wallpaper" },
+      { type: "select", key: "background.desktopClock.position", when: { key: "background.desktopClock.enabled", value: true }, label: "Position", subtext: "Where on the screen the clock sits", options: [
+        { value: "top-left", label: "Top left", icon: "north_west" },
+        { value: "top-center", label: "Top centre", icon: "north" },
+        { value: "top-right", label: "Top right", icon: "north_east" },
+        { value: "middle-left", label: "Middle left", icon: "west" },
+        { value: "middle-center", label: "Centre", icon: "filter_center_focus" },
+        { value: "middle-right", label: "Middle right", icon: "east" },
+        { value: "bottom-left", label: "Bottom left", icon: "south_west" },
+        { value: "bottom-center", label: "Bottom centre", icon: "south" },
+        { value: "bottom-right", label: "Bottom right", icon: "south_east" }
+      ] },
+      { type: "slider", key: "background.desktopClock.scale", when: { key: "background.desktopClock.enabled", value: true }, label: "Scale", icon: "aspect_ratio", from: 0.5, to: 2, step: 0.05, unit: "x" },
+      { type: "toggle", key: "background.desktopClock.invertColors", when: { key: "background.desktopClock.enabled", value: true }, label: "Invert colours", subtext: "Use the container colours, for a clock over a bright (or, in light mode, dark) wallpaper" },
+      { type: "toggle", key: "background.desktopClock.background.enabled", when: { key: "background.desktopClock.enabled", value: true }, label: "Background", subtext: "Draw the clock on a rounded plate" },
+      { type: "slider", key: "background.desktopClock.background.opacity", when: { key: "background.desktopClock.background.enabled", value: true }, label: "Background opacity", icon: "opacity", from: 0, to: 1, step: 0.01, unit: "%" },
+      { type: "toggle", key: "background.desktopClock.background.blur", when: { key: "background.desktopClock.background.enabled", value: true }, label: "Blur", subtext: "Blur the wallpaper behind the plate" },
+      { type: "toggle", key: "background.desktopClock.shadow.enabled", when: { key: "background.desktopClock.enabled", value: true }, label: "Shadow", subtext: "A soft drop shadow under the clock" },
+      { type: "slider", key: "background.desktopClock.shadow.opacity", when: { key: "background.desktopClock.shadow.enabled", value: true }, label: "Shadow opacity", icon: "opacity", from: 0, to: 1, step: 0.01, unit: "%" },
+      { type: "slider", key: "background.desktopClock.shadow.blur", when: { key: "background.desktopClock.shadow.enabled", value: true }, label: "Shadow blur", icon: "blur_on", from: 0, to: 1, step: 0.01, unit: "%" },
+      { type: "section", text: "Audio visualiser" },
+      { type: "toggle", key: "background.visualiser.enabled", label: "Audio visualiser", subtext: "Bars rising from the bottom of the wallpaper (needs cava)" },
+      { type: "toggle", key: "background.visualiser.autoHide", when: { key: "background.visualiser.enabled", value: true }, label: "Auto-hide", subtext: "Only show it while no tiled window covers the desktop" },
+      { type: "toggle", key: "background.visualiser.blur", when: { key: "background.visualiser.enabled", value: true }, label: "Blur", subtext: "Blur the wallpaper behind the bars" },
+      { type: "slider", key: "background.visualiser.rounding", when: { key: "background.visualiser.enabled", value: true }, label: "Bar rounding", icon: "rounded_corner", from: 0, to: 2, step: 0.05, unit: "x" },
+      { type: "slider", key: "background.visualiser.spacing", when: { key: "background.visualiser.enabled", value: true }, label: "Bar spacing", icon: "space_bar", from: 0, to: 3, step: 0.05, unit: "x" }
+    ]
+  },
+  sidebar: {
+    title: "Sidebar",
+    rows: [
+      { type: "section", text: "General" },
+      { type: "toggle", key: "sidebar.enabled", label: "Enabled", subtext: "Enable notification sidebar drawer" },
+      { type: "slider", key: "sidebar.width", label: "Sidebar width (at 100% scale)", icon: "dock_to_right", from: 320, to: 600, step: 10, unit: "px" }
+    ]
+  },
+  utilities: {
+    title: "Utilities",
+    rows: [
+      { type: "section", text: "General" },
+      { type: "toggle", key: "utilities.enabled", label: "Enabled", subtext: "Enable quick toggles and utilities drawer" },
+      { type: "slider", key: "utilities.width", label: "Utilities width (at 100% scale)", icon: "tune", from: 320, to: 600, step: 10, unit: "px" },
+      { type: "section", text: "Quick toggles" },
+      { type: "toggle", key: "utilities.toggles.wifi", label: "Wi-Fi" },
+      { type: "toggle", key: "utilities.toggles.bluetooth", label: "Bluetooth" },
+      { type: "toggle", key: "utilities.toggles.mic", label: "Microphone" },
+      { type: "toggle", key: "utilities.toggles.settings", label: "Settings", subtext: "Opens Omacale settings" },
+      { type: "toggle", key: "utilities.toggles.gameMode", label: "Game mode" },
+      { type: "toggle", key: "utilities.toggles.dnd", label: "Do not disturb" },
+      { type: "toggle", key: "utilities.toggles.nightlight", label: "Night light", subtext: "Omarchy's night light; more than six toggles wrap onto a second row" }
+    ]
+  }
+}
+
+function pageById(id) {
+  for (var i = 0; i < pages.length; i++) if (pages[i].id === id) return pages[i]
+  return subpages[id] ? { id: id, label: subpages[id].title, rows: subpages[id].rows, isSub: true } : null
+}
+
+// Every searchable row, tagged with where it lives.
+function searchRows(query) {
+  var q = String(query || "").trim().toLowerCase()
+  if (!q) return []
+  var out = []
+  var add = function(where, rows) {
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i]
+      if (r.type === "section" || r.type === "custom" || r.type === "nav") continue
+      var hay = (r.label + " " + (r.subtext || "") + " " + where).toLowerCase()
+      if (hay.indexOf(q) >= 0) out.push(Object.assign({ where: where }, r))
+    }
+  }
+  for (var p = 0; p < pages.length; p++) add(pages[p].label, pages[p].rows)
+  for (var id in subpages) add(subpages[id].title, subpages[id].rows)
+  return out
+}

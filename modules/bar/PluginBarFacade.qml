@@ -56,7 +56,11 @@ QtObject {
     } catch (e) {}
     return fallback
   }
-  function showTooltip(target, text) { _call("showTooltip", [target, String(text || "")]) }
+  // Tooltipy pluginu idą przez hosta, ale z jednym dopiskiem: widget, który
+  // niesie własną szufladę (popoutContent), otwiera ją na hover zamiast bańki z
+  // nazwą. Trzeba to rozstrzygnąć tutaj — plugin woła bar.showTooltip(root, …)
+  // ze SOBĄ jako celem, a Bar.showTooltip dostaje wtedy widget bez śladu karty.
+  function showTooltip(target, text) { if (!(target && "popoutContent" in target)) _call("showTooltip", [target, String(text || "")]) }
   function hideTooltip(target) { _call("hideTooltip", [target]) }
   function requestPopout(owner) { _call("requestPluginPopout", [facade, owner]) }
   function releasePopout(owner) { _call("releasePluginPopout", [facade, owner]) }

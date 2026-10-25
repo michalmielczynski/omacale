@@ -515,10 +515,6 @@ Item {
   function showTooltip(target, text) {
     clearTooltip()
     if (!target || !text) return
-    // A widget that brings its own popout content opens that card on hover
-    // (BarWidgetSlot.hoverReveal), so a name bubble would sit on top of it.
-    var item = target && target.activeItem ? target.activeItem : null
-    if (item && "popoutContent" in item) return
     var req = ++tooltipRequest
     pendingTooltipTarget = target
     pendingTooltipText = text
