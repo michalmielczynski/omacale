@@ -643,13 +643,16 @@ Item {
   // widget reports opened = false, which is what makes a click still toggle.
   property bool hoverHeld: false
   Timer { id: hoverRelease; interval: 120; onTriggered: root.hoverHeld = false }
-  function hoverAt(a, onBar) {
+  function hoverAt(ownStart, along, onBar) {
     if (!hostBringsPopout || !shown) return
-    // `a` is where the pointer sits inside this slot's cell: measured by the
-    // entry that hosts it (an icon can be scaled or turned, and a dimmed one has
-    // no size at all — see `spread`, hence the whole cell counts when stacked).
+    // where the pointer sits along the pill/entry that hosts this slot (`along`),
+    // less this slot's own start in it (`ownStart`). Without that subtraction every
+    // widget in a group got the same number against one slot-wide threshold, so it
+    // hit none of them — or all at once. The whole cell counts only while the icon
+    // is dimmed (a stacked column has no size of its own, see `spread`).
+    const rel = along - ownStart
     const size = root.stacked ? 1e6 : (vertical ? height : width)
-    if (onBar && a >= -2 && a <= size + 2) { hoverRelease.stop(); revealHeld = true; hoverHeld = true }
+    if (onBar && rel >= -2 && rel <= size + 2) { hoverRelease.stop(); revealHeld = true; hoverHeld = true }
     else if (hoverHeld && !hoverRelease.running) hoverRelease.start()
   }
 

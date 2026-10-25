@@ -116,8 +116,10 @@ Item {
     // BarWidgetSlot.hoverAt); same coordinates, same entry box.
     // The slot fills this entry's cell: pass the position inside it and let the
     // slot decide (it knows whether its icon is drawn or hidden).
+    // `along` jest liczony wzgledem tego wpisu — a ten pelni jedna komórke slupka,
+    // czyli rowniez swoje polozenie w nim (0).
     const hosted = slotLoader.item
-    if (hosted && typeof hosted.hoverAt === "function") hosted.hoverAt(along, onBar)
+    if (hosted && typeof hosted.hoverAt === "function") hosted.hoverAt(0, along, onBar)
   }
 
   function navStops() {

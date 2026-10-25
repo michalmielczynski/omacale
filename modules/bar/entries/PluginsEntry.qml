@@ -158,6 +158,8 @@ Item {
             collapsed: !pinned && !pill.expanded
             onShownChanged: pill.recount()
             onPinnedChanged: pill.recount()
+            // Przesunienie tego slupka wzgledem plytki, dla hoverAt (patrz wyzej).
+            readonly property int alongInPill: pluginsEntry.bar.vertical ? y : x
             onVisualLenChanged: pill.recount()
             Component.onCompleted: pill.recount()
             Component.onDestruction: pill.recount()
@@ -218,11 +220,12 @@ Item {
       collapsePluginsTimer.stop()
       if (pill.overflowCount > 0) pill.expanded = true
     } else if (pill.expanded && !collapsePluginsTimer.running) collapsePluginsTimer.start()
-    // The widgets inside decide about their own cards. Coordinates come from the
-    // pill, so each slot compares them with its own cell (see BarWidgetSlot).
+    // The widgets inside decide about their own cards. Each slot is placed at the
+    // pill's start, so its own y/x carries the offset along the bar — that is the
+    // only number that tells one widget from another inside a group.
     for (var i = 0; i < pluginRep.count; i++) {
       const it = pluginRep.itemAt(i)
-      if (it && typeof it.hoverAt === "function") it.hoverAt(p, over)
+      if (it && typeof it.hoverAt === "function") it.hoverAt(it.alongInPill, over ? p : -1, over)
     }
   }
   // The overflow opens while the bar focus cursor is in the pill.
