@@ -521,7 +521,6 @@ var subpages = {
       { type: "toggle", key: "dashboard.tabs.media", label: "Media" },
       { type: "toggle", key: "dashboard.tabs.performance", label: "Performance" },
       { type: "toggle", key: "dashboard.tabs.weather", label: "Weather" },
-      { type: "toggle", key: "dashboard.tabs.home", label: "Dom" },
       { type: "section", text: "Performance widgets" },
       { type: "toggle", key: "dashboard.performance.showBattery", label: "Battery" },
       { type: "toggle", key: "dashboard.performance.showGpu", label: "GPU" },

@@ -21,8 +21,7 @@ Item {
     { id: "dashboard", icon: "dashboard", text: "Dashboard", page: dash },
     { id: "media", icon: "queue_music", text: "Media", page: media },
     { id: "performance", icon: "speed", text: "Performance", page: perf },
-    { id: "weather", icon: "cloud", text: "Weather", page: weather },
-    { id: "home", icon: "home", text: "Dom", page: home }
+    { id: "weather", icon: "cloud", text: "Weather", page: weather }
   ]
   readonly property var tabs: {
     const t = allTabs.filter(x => cfg.tabs[x.id])
@@ -37,11 +36,11 @@ Item {
   readonly property Item page: tabs[Math.min(tab, tabs.length - 1)].page
   // Keys (ScreenScope's drawer cursor): the tab bar and the page on show --
   // not the strip, whose other pages sit clipped beside it. Tab / Shift+Tab
-  // and 1..N change tabs (N = the tabs enabled in Settings › Dashboard).
+  // and 1..4 change tabs.
   readonly property var navRoots: [tabBar, page]
   function navTab(d) { tab = (tab + d + tabs.length) % tabs.length }
   function navTabAt(n) { if (n >= 1 && n <= tabs.length) tab = n - 1 }
-  // The current tab's cursor stop, so Tab / 1..N carry a cursor that is on
+  // The current tab's cursor stop, so Tab / 1..4 carry a cursor that is on
   // the tab bar along to the new tab.
   function navTabStop() { const it = tabRep.itemAt(tab); return it ? it.stop : null }
   function inTabBar(item) {
@@ -198,7 +197,6 @@ Item {
         MediaTab { id: media; visible: root.cfg.tabs.media; active: root.active && root.page === media }
         PerfTab { id: perf; visible: root.cfg.tabs.performance; active: root.active && root.page === perf }
         WeatherTab { id: weather; visible: root.cfg.tabs.weather; active: root.active && root.page === weather }
-        HomeTab { id: home; visible: root.cfg.tabs.home; active: root.active && root.page === home }
       }
     }
   }
