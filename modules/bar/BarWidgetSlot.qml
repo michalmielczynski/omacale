@@ -629,6 +629,7 @@ Item {
   readonly property bool hostBringsPopout: activeItem ? ("popoutContent" in activeItem) : false
 
   // --------------------------------------------------- hover opens the card
+
   //
   // Omacale's own popouts (wifi, battery, tray) open while the pointer sits on
   // their icon; a hosted widget cannot do that by itself because Qt never
@@ -644,11 +645,19 @@ Item {
   Timer { id: hoverRelease; interval: 120; onTriggered: root.hoverHeld = false }
   function hoverAt(a, onBar) {
     if (!hostBringsPopout || !shown) return
-    // `bar` here is the plugin facade, which has no geometry helpers; measure in
-    // the bar's own window, where ScreenScope's coordinate comes from.
-    const p0 = parent ? root.mapToItem(null, vertical ? 0 : a, vertical ? a : 0) : null
-    const along = p0 ? (vertical ? p0.y : p0.x) : -1
-    if (onBar && along >= 0 && along <= (vertical ? height : width)) { hoverRelease.stop(); hoverHeld = true }
+    // `bar` is the plugin facade and has no geometry helpers, so measure in the
+    // bar's own window: ScreenScope's coordinate along the bar, minus where this
+    // slot starts in that same window. mapFromItem(null, …) would shift it by the
+    // whole screen — the bar window covers the entire monitor.
+    const origin = parent ? root.mapToItem(null, vertical ? 0 : a, vertical ? a : 0) : null
+    const start = parent ? root.mapToItem(null, 0, 0) : null
+    if (!origin || !start) return
+    const along = vertical ? origin.y - start.y : origin.x - start.x
+    // An idle widget is drawn as a dim stack with no size of its own (Omarchy's
+    // rule, see `spread`); its pill belongs to the entry, so while stacked the
+    // whole slot counts as "on me" and revealHeld below is what reveals it.
+    const size = root.stacked ? 1e6 : (vertical ? height : width)
+    if (onBar && along >= -2 && along <= size) { hoverRelease.stop(); revealHeld = true; hoverHeld = true }
     else if (hoverHeld && !hoverRelease.running) hoverRelease.start()
   }
 
@@ -683,8 +692,34 @@ Item {
     for (const s of ((root.bar.host && root.bar.host.scopes) ? root.bar.host.scopes : [])) if (name === "" || s.popout === name) s.popout = ""
   }
 
+  // Hover opens the widget exactly like a click does — BarContent.openPlugin,
+  // which asks the widget itself (toggle()/open(), whatever it implements). Going
+  // to open() directly would leave out everything the bar wraps a click in: this
+  // is why a hover used to do nothing for widgets whose click path isn't open().
+  // Closing stays ScreenScope's job: off the bar and out of the card it clears
+  // `popout`, and releaseActivePopout() closes the owner then.
+  property bool hoverOpening: false
+  Timer { id: hoverSticky; interval: 300; onTriggered: root.hoverOpening = false }
   readonly property bool hoverWantsOpen: hoverHeld && hostBringsPopout && !!activeItem && !activeItem.opened
-  onHoverWantsOpenChanged: if (hoverWantsOpen && activeItem) activeItem.open()
+  onHoverWantsOpenChanged: {
+    if (!hoverWantsOpen || !activeItem) return
+    const b = root.bar
+    // The click path lives on the bar content (BarContent.openPlugin); the
+    // facade's host is exactly that object.
+    const target = (b && b.host && typeof b.host.openPlugin === "function") ? b.host : null
+    // open() while the pointer is already there makes the widget's own click
+    // handler close what we just opened, so a fresh open stays authoritative for
+    // a moment and only afterwards may a second hover toggle the card away.
+    if (target) {
+      hoverOpening = true
+      hoverSticky.restart()
+      target.openPlugin(root)
+    } else activeItem.open()
+  }
+
+  // Omacale's own card for a widget that brings popoutContent: the drawers'
+  // layer, with glass and blur, above everything. Raised/cleared in this
+  // screen's ScreenScope; the host object reaches it through bar.host.scopes.
   Connections {
     target: root.activeItem
     ignoreUnknownSignals: true
@@ -694,8 +729,11 @@ Item {
         // claim/zwolnienie popouta idzie przez facade (PluginBarApi), ktory
         // przekazuje do Bara Omacale; karte wystawia bezposrednio scope tego
         // ekranu — facade ma tylko requestPopout/releasePopout, bez open/close.
-        if (root.activeItem.opened) {
+          if (root.activeItem.opened) {
           bar.requestPopout(root.activeItem)
+          // Karta Omacale dla widgetu z popoutContent; widget hosta (panel
+          // Kompatybilności, np. melon.sony) ma juz swoje okno — ono wstaje samo,
+          // tu tylko przejmujemy its popout claim.
           root.openHostCard()
         } else {
           bar.releasePopout(root.activeItem)
@@ -705,21 +743,20 @@ Item {
     }
   }
 
+  // Panel hosta (Kompatybilnosc, np. melon.sony rysuje okno Omarchy): claim
+  // popouta idzie przez facade — root.host to obiekt hosta i nie ma requestPopout.
   Connections {
     target: root.compatibilityPanel
     ignoreUnknownSignals: true
     function onOpenChanged() {
-      if (root.compatibilityPanel) {
-        if (root.compatibilityPanel.open) {
-          if (typeof root.host.requestPopout === "function")
-            root.host.requestPopout(root.activeItem)
-        } else {
-          if (typeof root.host.releasePopout === "function")
-            root.host.releasePopout(root.activeItem)
-        }
-      }
+      if (!root.compatibilityPanel) return
+      if (root.compatibilityPanel.open) bar.requestPopout(root.activeItem)
+      else bar.releasePopout(root.activeItem)
     }
   }
+
+  // Omacale's popout card for a widget that has one is raised the moment the
+  // widget says it is open — whichever path got it there (click, hover, hotkey).
 
   onActiveItemChanged: {
     primaryButton = null
