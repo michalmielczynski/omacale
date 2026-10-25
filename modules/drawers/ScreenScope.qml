@@ -135,6 +135,9 @@ Scope {
     function onDismissed() { if (!scope.osdHovered) scope.osd = false }
   }
   property bool dashShortcut: false
+  // Sidebar otwarty klawiszem/gestem zostaje otwarty, dopóki uzytkownik go nie
+  // zamknie — najechanie na rog nie moze mu go zabrac (ten sam wzorzec co dash/util).
+  property bool sidebarShortcut: false
   // Utilities opened by a shortcut/click stay open; opened by hovering the
   // bottom-right corner they close once the cursor leaves (Caelestia Interactions).
   property bool utilShortcut: false
@@ -207,7 +210,7 @@ Scope {
     onActivateRequested: drawerNav.activate()
     onCloseRequested: {
       scope.dashboard = false; scope.dashShortcut = false
-      scope.sidebar = false; scope.utilities = false
+      scope.sidebar = false; scope.sidebarShortcut = false; scope.utilities = false
     }
     onTabRequested: d => drawerNav.next(d)
     onDeleteRequested: drawerNav.remove()
@@ -330,7 +333,7 @@ Scope {
 
   function closeAll() {
     barFocus = false
-    launcher = false; session = false; dashboard = false; dashShortcut = false; popout = ""; settings = false; sidebar = false; utilities = false; overview = false
+    launcher = false; session = false; dashboard = false; dashShortcut = false; popout = ""; settings = false; sidebar = false; sidebarShortcut = false; utilities = false; overview = false
   }
 
   onUtilitiesChanged: {
@@ -374,7 +377,11 @@ Scope {
         }
       }
       // The session menu stays: it moves over to sit against the sidebar.
-      else if (name === "sidebar" && (!scope.cfg.sidebar || scope.cfg.sidebar.enabled)) scope.sidebar = !scope.sidebar
+      else if (name === "sidebar" && (!scope.cfg.sidebar || scope.cfg.sidebar.enabled)) {
+        // Otwarty klawiszem/gestem — nie podlega najechaniu, patrz sidebarShortcut.
+        scope.sidebar = !scope.sidebar
+        scope.sidebarShortcut = scope.sidebar
+      }
       else if (name === "utilities" && (!scope.cfg.utilities || scope.cfg.utilities.enabled)) {
         if (scope.session) scope.session = false
         scope.utilities = !scope.utilities
@@ -1318,6 +1325,21 @@ Scope {
       acceptedButtons: win.fs > 0 ? Qt.NoButton : Qt.AllButtons
       property point dragStart
 
+      // Krawedz, z ktorej wysuwa sie sidebar: prawa (lewa gdy bar siedzi po
+      // prawej), przy tym koncu ekranu gdzie jest jego gora. Wasiki pasek — ten
+      // sam gest co pociagniecie od krawedzi (handleDrag).      function inSidebarCorner(x, y) {
+        const reach = Tk.barWidth + 8
+        const edge = scope.mirror ? x <= reach : x >= win.width - reach
+        const along = scope.flipV ? y >= win.height - reach : y <= reach
+        return edge && along
+      }
+      // Sam panel: dopóki kursor jest w jego obrebie, sidebar zostaje otwarty —
+      // inaczej znikalby w polowie ruchu od rogu do srodka szuflady.
+      function inSidebarPanel(x, y) {
+        if (!win.sbVis) return false
+        return scope.mirror ? x <= win.sbx + win.sbw : x >= win.sbx
+      }
+
       // How far a point is from the bar's screen edge, and where it is along
       // the bar: the two axes the bar's hit tests work in.
       function barDepth(x, y) {
@@ -1372,7 +1394,7 @@ Scope {
         // A click on the scrim (outside the settings panel) closes it.
         if (scope.settings && !(e.x >= win.nx && e.x <= win.nx + win.nw && e.y >= win.ny && e.y <= win.ny + win.nh)) scope.settings = false
         if (scope.overview && !(e.x >= win.ox && e.x <= win.ox + win.ow && e.y >= win.oy && e.y <= win.oy + win.oh)) scope.overview = false
-        if (scope.sidebar && (scope.mirror ? e.x > win.sbx + win.sbw : e.x < win.sbx)) scope.sidebar = false
+        if (scope.sidebar && (scope.mirror ? e.x > win.sbx + win.sbw : e.x < win.sbx)) { scope.sidebar = false; scope.sidebarShortcut = false }
         if (scope.utilities && !scope.sidebar && ((scope.mirror ? e.x > win.ux + win.uw : e.x < win.ux) || (scope.flipV ? e.y > win.uy + win.uh : e.y < win.uy))) scope.utilities = false
       }
       onContainsMouseChanged: {
@@ -1415,7 +1437,7 @@ Scope {
         if ((!scope.cfg.sidebar || scope.cfg.sidebar.enabled) && pressed && !scope.sidebar && nearSideEdge(dragStart.x) && (scope.flipV ? y > win.sy + win.sh : y < win.sy) && sideInward(dx) > 30) {
           scope.sidebar = true
         } else if (pressed && scope.sidebar && (scope.mirror ? dragStart.x <= win.sbx + win.sbw : dragStart.x >= win.sbx) && sideInward(dx) < -40) {
-          scope.sidebar = false
+          scope.sidebar = false; scope.sidebarShortcut = false
           if (scope.utilShortcut) scope.utilities = false
         }
         // Launcher: drag up from the bottom edge.
@@ -1445,11 +1467,25 @@ Scope {
             scope.osd = showOsd
           }
         }
+        // Notifications sidebar: hover its edge — for a bar on top/right that is
+        // the top-right corner, which is where Caelestia's hover lives too. Held
+        // open while the pointer is inside it, closed once off both (same rule as
+        // utilities and the bar popouts). Not while another drawer owns that
+        // corner: a bottom bar moves utilities there, and keyboard navigation
+        // keeps its drawer until the user leaves it.
+        const sbHoverOn = !scope.cfg.sidebar || scope.cfg.sidebar.showOnHover !== false
+        if (sbHoverOn && (!scope.cfg.sidebar || scope.cfg.sidebar.enabled) && !scope.sidebarShortcut) {
+          const keep = inSidebarPanel(x, y)
+          if (scope.sidebar) scope.sidebar = keep
+          else if (inSidebarCorner(x, y)) scope.sidebar = true
+        }
 
-        // Utilities: hover the bottom-right corner.
+        // Ustawienia: hover dolnego prawego rogu (górnego, gdy bar na dole je
+        // tam przenióst). Kursor otwiera je dopóki nad nimi nie ma sidebaru —
+        // inaczej ten sam rog mialby dwie szuflady naraz.
         if (!scope.cfg.utilities || scope.cfg.utilities.enabled) {
           const showUtil = inBottomUtil(x, y)
-          if (!scope.utilShortcut) scope.utilities = showUtil
+          if (!scope.utilShortcut) { if (!scope.sidebar) scope.utilities = showUtil }
           else if (showUtil && !drawerNav.cursor) scope.utilShortcut = false
         }
 

@@ -61,7 +61,7 @@ var values = {
     icons: { logout: "", shutdown: "", hibernate: "", reboot: "", lock: "", screensaver: "" },
     commands: { logout: "", shutdown: "", hibernate: "", reboot: "", lock: "", screensaver: "" }
   },
-  sidebar: { enabled: true, width: 430 },
+  sidebar: { enabled: true, width: 430, showOnHover: true },
   // Workspace overview (SUPER + TAB). `scale` is a ceiling: the grid is shrunk
   // further whenever rows x columns would not fit the screen.
   overview: { enabled: true, position: "middle", detached: false, gap: 48, rows: 2, columns: 5, scale: 0.18, hideEmptyRows: true, previews: true, showIcons: true },

@@ -302,6 +302,9 @@ QtObject {
       property JsonObject sidebar: JsonObject {
         property bool enabled: true
         property int width: 430
+        // Panel otwiera sie sam, gdy kursor wejdzie w rog swojej krawedzi — ten
+        // sam gest co pociagniecie. Wylaczone: tylko skr/klawisz/gest.
+        property bool showOnHover: true
       }
       property JsonObject lock: JsonObject {
         property bool enabled: false
