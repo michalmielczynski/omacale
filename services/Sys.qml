@@ -468,10 +468,14 @@ QtObject {
   // Synced lyrics from lrclib.net (scripts/lyrics.sh), parsed from LRC.
   property var lyrics: []             // [{ time, text }]
   property string lyricsState: "none" // loading | ready | none
+  // Consumers that really need the words: the media tab while it is on screen.
+  // Zero means nobody is looking, so nothing is fetched -- this used to hit
+  // lrclib.net on every track change for a page that was closed.
+  property int lyricsWanted: 0
   // The lrclib record the lyrics came from: { title, artist, album }.
   property var lyricsMatch: null
   property string _lyricsKey: ""
-  readonly property string lyricsKey: player && Config.o.dashboard.lyrics ? (player.trackArtist + "\u0001" + player.trackTitle) : ""
+  readonly property string lyricsKey: player && Config.o.dashboard.lyrics && lyricsWanted > 0 ? (player.trackArtist + "\u0001" + player.trackTitle) : ""
   onLyricsKeyChanged: lyricsDebounce.restart()
   property Timer lyricsDebounce: Timer {
     interval: 400

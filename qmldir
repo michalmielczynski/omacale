@@ -80,6 +80,11 @@ Sparkline 1.0 components/shapes/Sparkline.qml
 SplitSelect 1.0 components/controls/SplitSelect.qml
 SpecialWorkspaces 1.0 modules/bar/workspaces/SpecialWorkspaces.qml
 StateLayer 1.0 components/StateLayer.qml
+HomeTab 1.0 modules/dashboard/HomeTab.qml
+HomeValue 1.0 modules/dashboard/HomeValue.qml
+LightsCard 1.0 modules/dashboard/LightsCard.qml
+RekuperacjaCard 1.0 modules/dashboard/RekuperacjaCard.qml
+SonyCard 1.0 modules/dashboard/SonyCard.qml
 KeyNav 1.0 components/KeyNav.qml
 FocusRing 1.0 components/FocusRing.qml
 NavCursor 1.0 components/NavCursor.qml

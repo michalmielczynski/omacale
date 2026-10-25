@@ -12,6 +12,12 @@ import "../.."
 Item {
   id: root
   property bool active: false
+  // Synced lyrics are a network fetch per track (scripts/lyrics.sh -> lrclib.net)
+  // and they are only ever drawn here, so the fetch is held while this tab is off
+  // screen: Sys.lyricsWanted is what the debounce reads. The release on
+  // destruction lives with the visualiser's hold below -- one
+  // Component.onDestruction per object, or the component fails to load.
+  onActiveChanged: Sys.lyricsWanted += active ? 1 : -1
   readonly property var player: Sys.player
   readonly property bool playing: player ? player.isPlaying : false
   // Keys (ScreenScope's drawer cursor): n / p next and previous track.
@@ -29,7 +35,10 @@ Item {
   // The visualiser only runs while this tab is on screen and music plays.
   readonly property bool wantVis: active && visible && playing && Config.o.dashboard.visualiser
   onWantVisChanged: Sys.visualiserWanted += wantVis ? 1 : -1
-  Component.onDestruction: if (wantVis) Sys.visualiserWanted -= 1
+  Component.onDestruction: {
+    if (wantVis) Sys.visualiserWanted -= 1
+    if (active) Sys.lyricsWanted -= 1
+  }
 
   Timer {
     running: root.active && root.playing

@@ -186,7 +186,7 @@ Scope {
   // the keyboard, and one spatial cursor (NavCursor) walks whatever of them
   // is open -- the sidebar and utilities share a panel, so j/k run from one
   // into the other. Settings keeps its own focus and hands its keys over
-  // through keyHook. Omarchy's panel keys (KeyNav), plus Tab / 1..4 for
+  // through keyHook. Omarchy's panel keys (KeyNav), plus Tab / 1..N for
   // dashboard tabs and Shift+X to clear the notifications.
   readonly property bool drawerKeys: !popoutHeld && !barFocus && !launcher && !session && !overview && !settings
     && (sidebar || (dashboard && dashShortcut) || (utilities && utilShortcut))

@@ -215,6 +215,7 @@ QtObject {
         property bool lyrics: true
         property bool visualiser: true
         property JsonObject tabs: JsonObject {
+          property bool home: true
           property bool dashboard: true
           property bool media: true
           property bool performance: true
