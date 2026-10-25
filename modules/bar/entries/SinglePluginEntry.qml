@@ -114,8 +114,10 @@ Item {
     else if (revealHeld && !revealRelease.running) revealRelease.start()
     // The slot inside decides about its card (opens it on hover, see
     // BarWidgetSlot.hoverAt); same coordinates, same entry box.
+    // The slot fills this entry's cell: pass the position inside it and let the
+    // slot decide (it knows whether its icon is drawn or hidden).
     const hosted = slotLoader.item
-    if (hosted && typeof hosted.hoverAt === "function") hosted.hoverAt(a, onBar)
+    if (hosted && typeof hosted.hoverAt === "function") hosted.hoverAt(along, onBar)
   }
 
   function navStops() {

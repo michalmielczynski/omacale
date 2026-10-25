@@ -213,10 +213,17 @@ Item {
   }
   function hoverAt(a, onBar) {
     const p = bar.pointAlong(bar.pointOn(pill, a))
-    if (onBar && pill.visible && p >= 0 && p <= bar.alen(pill)) {
+    const over = onBar && pill.visible && p >= 0 && p <= bar.alen(pill)
+    if (over) {
       collapsePluginsTimer.stop()
       if (pill.overflowCount > 0) pill.expanded = true
     } else if (pill.expanded && !collapsePluginsTimer.running) collapsePluginsTimer.start()
+    // The widgets inside decide about their own cards. Coordinates come from the
+    // pill, so each slot compares them with its own cell (see BarWidgetSlot).
+    for (var i = 0; i < pluginRep.count; i++) {
+      const it = pluginRep.itemAt(i)
+      if (it && typeof it.hoverAt === "function") it.hoverAt(p, over)
+    }
   }
   // The overflow opens while the bar focus cursor is in the pill.
   function cursorMoved(s) {

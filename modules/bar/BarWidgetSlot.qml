@@ -645,19 +645,11 @@ Item {
   Timer { id: hoverRelease; interval: 120; onTriggered: root.hoverHeld = false }
   function hoverAt(a, onBar) {
     if (!hostBringsPopout || !shown) return
-    // `bar` is the plugin facade and has no geometry helpers, so measure in the
-    // bar's own window: ScreenScope's coordinate along the bar, minus where this
-    // slot starts in that same window. mapFromItem(null, …) would shift it by the
-    // whole screen — the bar window covers the entire monitor.
-    const origin = parent ? root.mapToItem(null, vertical ? 0 : a, vertical ? a : 0) : null
-    const start = parent ? root.mapToItem(null, 0, 0) : null
-    if (!origin || !start) return
-    const along = vertical ? origin.y - start.y : origin.x - start.x
-    // An idle widget is drawn as a dim stack with no size of its own (Omarchy's
-    // rule, see `spread`); its pill belongs to the entry, so while stacked the
-    // whole slot counts as "on me" and revealHeld below is what reveals it.
+    // `a` is where the pointer sits inside this slot's cell: measured by the
+    // entry that hosts it (an icon can be scaled or turned, and a dimmed one has
+    // no size at all — see `spread`, hence the whole cell counts when stacked).
     const size = root.stacked ? 1e6 : (vertical ? height : width)
-    if (onBar && along >= -2 && along <= size) { hoverRelease.stop(); revealHeld = true; hoverHeld = true }
+    if (onBar && a >= -2 && a <= size + 2) { hoverRelease.stop(); revealHeld = true; hoverHeld = true }
     else if (hoverHeld && !hoverRelease.running) hoverRelease.start()
   }
 
@@ -692,29 +684,20 @@ Item {
     for (const s of ((root.bar.host && root.bar.host.scopes) ? root.bar.host.scopes : [])) if (name === "" || s.popout === name) s.popout = ""
   }
 
-  // Hover opens the widget exactly like a click does — BarContent.openPlugin,
-  // which asks the widget itself (toggle()/open(), whatever it implements). Going
-  // to open() directly would leave out everything the bar wraps a click in: this
-  // is why a hover used to do nothing for widgets whose click path isn't open().
+  // A still-hovered icon opens its widget once — through BarContent.openPlugin,
+  // the same door a click goes through (it asks the widget toggle()/open()).
+  // Written as a handler on hoverHeld rather than a binding on `!activeItem.opened`:
+  // such a binding reads the very property it changes and QML reports a loop.
   // Closing stays ScreenScope's job: off the bar and out of the card it clears
   // `popout`, and releaseActivePopout() closes the owner then.
-  property bool hoverOpening: false
-  Timer { id: hoverSticky; interval: 300; onTriggered: root.hoverOpening = false }
-  readonly property bool hoverWantsOpen: hoverHeld && hostBringsPopout && !!activeItem && !activeItem.opened
-  onHoverWantsOpenChanged: {
-    if (!hoverWantsOpen || !activeItem) return
+  onHoverHeldChanged: {
+    if (!hoverHeld || !hostBringsPopout || !shown) return
+    const it = activeItem
+    if (!it || it.opened) return
     const b = root.bar
-    // The click path lives on the bar content (BarContent.openPlugin); the
-    // facade's host is exactly that object.
     const target = (b && b.host && typeof b.host.openPlugin === "function") ? b.host : null
-    // open() while the pointer is already there makes the widget's own click
-    // handler close what we just opened, so a fresh open stays authoritative for
-    // a moment and only afterwards may a second hover toggle the card away.
-    if (target) {
-      hoverOpening = true
-      hoverSticky.restart()
-      target.openPlugin(root)
-    } else activeItem.open()
+    if (target) target.openPlugin(root)
+    else it.open()
   }
 
   // Omacale's own card for a widget that brings popoutContent: the drawers'
