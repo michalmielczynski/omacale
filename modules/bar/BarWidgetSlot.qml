@@ -1,14 +1,9 @@
-pragma ComponentBehavior: Bound
-
 import QtQuick
 import QtQuick.Effects
 import Quickshell
-// Bar.qml siedzi obok tego pliku i jest singletonem modułu (qmldir jest w tym
-// samym katalogu co on), więc widać go bez ścieżki. Pragma na górze każe pisać
-// prefiks przy każdej właściwości singletonu: bez „Bar.” odwołanie do
-// scopes/openPluginPopout to ReferenceError — a ten plik nie ma własnego id, więc
-// nic nie złapałoby takiego błędu i karta po prostu by nie wstała.
-import ".."
+// Omacale's Bar instance, injected by ScreenScope (`delegate: ScreenScope { host: root }`).
+// The plugin facade forwards the same object as `host`, so this is the one place
+// that decides about popouts and tooltips for a hosted widget.
 import qs.Commons
 import "../.."
 import "../../core/BarLayout.js" as BarLayout
@@ -618,14 +613,11 @@ Item {
       hoverEnabled: true
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       cursorShape: Qt.PointingHandCursor
-      // A widget that brings popout content answers hover from its own card
-      // (BarWidgetSlot.hoverAt → Bar.openPluginPopout), so this pill only ever
-      // appears for a proxy whose widget has nothing to show; no tooltip bubble.
-      // The proxy pill stands in for a widget too long to read turned, or one
-      // with nothing to show. Its own hover is dead here: the real item sits
-      // underneath and answers on its own (a popoutContent widget opens its
-      // card through hoverAt), so no tooltip may be raised over it.
-      enabled: false
+      // A widget that brings its own card (hostBringsPopout) is opened by hover
+      // from ScreenScope, so no name bubble may sit on top of it; the others
+      // keep Omarchy's tooltip.
+      onEntered: if (!root.hostBringsPopout) bar.showTooltip(compactButton, root.placeholder ? root.displayName + " · idle" : root.displayName)
+      onExited: bar.hideTooltip(compactButton)
       onClicked: function(mouse) { root.triggerCompactAction(mouse.button) }
     }
   }
@@ -652,8 +644,11 @@ Item {
   Timer { id: hoverRelease; interval: 120; onTriggered: root.hoverHeld = false }
   function hoverAt(a, onBar) {
     if (!hostBringsPopout || !shown) return
-    const along = parent ? bar.pointAlong(bar.pointOn(root, a)) : -1
-    if (onBar && along >= 0 && along <= bar.alen(root)) { hoverRelease.stop(); hoverHeld = true }
+    // `bar` here is the plugin facade, which has no geometry helpers; measure in
+    // the bar's own window, where ScreenScope's coordinate comes from.
+    const p0 = parent ? root.mapToItem(null, vertical ? 0 : a, vertical ? a : 0) : null
+    const along = p0 ? (vertical ? p0.y : p0.x) : -1
+    if (onBar && along >= 0 && along <= (vertical ? height : width)) { hoverRelease.stop(); hoverHeld = true }
     else if (hoverHeld && !hoverRelease.running) hoverRelease.start()
   }
 
@@ -663,7 +658,32 @@ Item {
   // popout directly — one path for a click and for a hover. Closing is left to
   // ScreenScope: once the pointer is off the bar and out of the card it clears
   // `popout` itself, exactly as it does for the status popouts.
-  readonly property bool hoverWantsOpen: hoverHeld && hostBringsPopout && activeItem && !activeItem.opened
+  // Opening: the widget's own open() — what Omarchy's click does — and Omacale's
+  // card for it is raised by onOpenedChanged below through Bar.openPluginPopout,
+  // which is what brings the card to the drawers' layer with blur. The close side
+  // stays ScreenScope's: off the bar and out of the card it clears `popout`, and
+  // releaseActivePopout() closes this widget then.
+  // Omacale's card for a widget that brings popoutContent, on the drawers' layer
+  // (glass + blur, above everything). Both go through this screen's ScreenScope:
+  // openPopoutKeys raises it, clearing `popout` puts it away.
+  function hostCardScope() {
+    const w = root.QsWindow.window
+    const s = (root.bar.host && root.bar.host.scopes) ? root.bar.host.scopes : []
+    for (var i = 0; i < s.length; i++)
+      if (w && w.screen && s[i].screen && s[i].screen.name === w.screen.name) return s[i]
+    return null
+  }
+  function openHostCard() {
+    if (!hostBringsPopout || !activeItem || !activeItem.popout) return
+    const s = hostCardScope()
+    if (s) s.openPopoutKeys(activeItem.popout)
+  }
+  function closeHostCard() {
+    const name = activeItem && activeItem.popout ? activeItem.popout : ""
+    for (const s of ((root.bar.host && root.bar.host.scopes) ? root.bar.host.scopes : [])) if (name === "" || s.popout === name) s.popout = ""
+  }
+
+  readonly property bool hoverWantsOpen: hoverHeld && hostBringsPopout && !!activeItem && !activeItem.opened
   onHoverWantsOpenChanged: if (hoverWantsOpen && activeItem) activeItem.open()
   Connections {
     target: root.activeItem
@@ -671,15 +691,15 @@ Item {
     function onOpenedChanged() {
       if (root.activeItem) {
         root.resolveCompatibilitySurface()
+        // claim/zwolnienie popouta idzie przez facade (PluginBarApi), ktory
+        // przekazuje do Bara Omacale; karte wystawia bezposrednio scope tego
+        // ekranu — facade ma tylko requestPopout/releasePopout, bez open/close.
         if (root.activeItem.opened) {
-          if (typeof Bar.requestPopout === "function")
-            Bar.requestPopout(root.activeItem)
-          // Its own popout content: Omacale draws the card (Bar.openPluginPopout).
-          if ("popoutContent" in root.activeItem) Bar.openPluginPopout(root.activeItem)
+          bar.requestPopout(root.activeItem)
+          root.openHostCard()
         } else {
-          if (typeof Bar.releasePopout === "function")
-            Bar.releasePopout(root.activeItem)
-          if ("popoutContent" in root.activeItem) Bar.closePluginPopout(root.activeItem)
+          bar.releasePopout(root.activeItem)
+          root.closeHostCard()
         }
       }
     }
@@ -691,11 +711,11 @@ Item {
     function onOpenChanged() {
       if (root.compatibilityPanel) {
         if (root.compatibilityPanel.open) {
-          if (typeof Bar.requestPopout === "function")
-            Bar.requestPopout(root.activeItem)
+          if (typeof root.host.requestPopout === "function")
+            root.host.requestPopout(root.activeItem)
         } else {
-          if (typeof Bar.releasePopout === "function")
-            Bar.releasePopout(root.activeItem)
+          if (typeof root.host.releasePopout === "function")
+            root.host.releasePopout(root.activeItem)
         }
       }
     }
