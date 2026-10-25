@@ -71,6 +71,8 @@ VERIFIED_SERVICES = {
     "92c37d5dc617ce53e4080ad420ae18613bc62f94923c150e0e69fea52534eecd",
     # Omarchy dev, 4.0.0.r7024 (246f33a) - r7026 (51bfd1d)
     "567e2214d56a8cf1208c9421c42abf3ec0d836419cc99db5d7d85502ff3852e6",
+    # Omarchy 4.0.6 (stable; stranded-lock helper + Commons.Color, same LockView contract)
+    "661ce2b70e6deadb293b0a7a2c2f19d10086ab191913ceb6d716bcc9b24fc7c4",
 }
 
 HOME = os.path.expanduser("~")
