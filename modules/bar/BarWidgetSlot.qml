@@ -1,6 +1,14 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Effects
 import Quickshell
+// Bar.qml siedzi obok tego pliku i jest singletonem modułu (qmldir jest w tym
+// samym katalogu co on), więc widać go bez ścieżki. Pragma na górze każe pisać
+// prefiks przy każdej właściwości singletonu: bez „Bar.” odwołanie do
+// scopes/openPluginPopout to ReferenceError — a ten plik nie ma własnego id, więc
+// nic nie złapałoby takiego błędu i karta po prostu by nie wstała.
+import ".."
 import qs.Commons
 import "../.."
 import "../../core/BarLayout.js" as BarLayout
@@ -610,11 +618,14 @@ Item {
       hoverEnabled: true
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       cursorShape: Qt.PointingHandCursor
-      // A widget with its own popout content (melon.rekuperacja, melon.swiatla)
-      // opens the Omacale card on hover — see `hoverAt` below — so it gets no
-      // tooltip: the card says more than a name bubble would.
-      onEntered: if (!root.hostBringsPopout) root.host.showTooltip(compactButton, root.placeholder ? root.displayName + " · idle" : root.displayName)
-      onExited: root.host.hideTooltip(compactButton)
+      // A widget that brings popout content answers hover from its own card
+      // (BarWidgetSlot.hoverAt → Bar.openPluginPopout), so this pill only ever
+      // appears for a proxy whose widget has nothing to show; no tooltip bubble.
+      // The proxy pill stands in for a widget too long to read turned, or one
+      // with nothing to show. Its own hover is dead here: the real item sits
+      // underneath and answers on its own (a popoutContent widget opens its
+      // card through hoverAt), so no tooltip may be raised over it.
+      enabled: false
       onClicked: function(mouse) { root.triggerCompactAction(mouse.button) }
     }
   }
@@ -661,18 +672,14 @@ Item {
       if (root.activeItem) {
         root.resolveCompatibilitySurface()
         if (root.activeItem.opened) {
-          if (root.host && typeof root.host.requestPopout === "function")
-            root.host.requestPopout(root.activeItem)
+          if (typeof Bar.requestPopout === "function")
+            Bar.requestPopout(root.activeItem)
           // Its own popout content: Omacale draws the card (Bar.openPluginPopout).
-          if (root.host && typeof root.host.openPluginPopout === "function"
-              && "popoutContent" in root.activeItem)
-            root.host.openPluginPopout(root.activeItem)
+          if ("popoutContent" in root.activeItem) Bar.openPluginPopout(root.activeItem)
         } else {
-          if (root.host && typeof root.host.releasePopout === "function")
-            root.host.releasePopout(root.activeItem)
-          if (root.host && typeof root.host.closePluginPopout === "function"
-              && "popoutContent" in root.activeItem)
-            root.host.closePluginPopout(root.activeItem)
+          if (typeof Bar.releasePopout === "function")
+            Bar.releasePopout(root.activeItem)
+          if ("popoutContent" in root.activeItem) Bar.closePluginPopout(root.activeItem)
         }
       }
     }
@@ -684,11 +691,11 @@ Item {
     function onOpenChanged() {
       if (root.compatibilityPanel) {
         if (root.compatibilityPanel.open) {
-          if (root.host && typeof root.host.requestPopout === "function")
-            root.host.requestPopout(root.activeItem)
+          if (typeof Bar.requestPopout === "function")
+            Bar.requestPopout(root.activeItem)
         } else {
-          if (root.host && typeof root.host.releasePopout === "function")
-            root.host.releasePopout(root.activeItem)
+          if (typeof Bar.releasePopout === "function")
+            Bar.releasePopout(root.activeItem)
         }
       }
     }
