@@ -23,8 +23,8 @@ Item {
   signal menuChanged(bool open)
   signal launcherRequested
   readonly property bool vertical: edge === "left" || edge === "right"
-  // Compact is the original pill; full is a dashboard-sized drawer: a header,
-  // names under the icons, and room for the apps to breathe.
+  // Compact is the original pill; full is a dashboard-sized drawer: names
+  // under the icons and room for the apps to breathe.
   readonly property bool full: Config.o.dock.size === "full"
   readonly property real cell: Tk.px(full ? Math.round(Config.o.dock.iconSize * 1.5) : Config.o.dock.iconSize)
   // The icons sit on a plate of their own inside the drawer: with a theme
@@ -33,8 +33,6 @@ Item {
   readonly property real platePad: Tk.padding.small
   readonly property real pad: full ? Tk.padding.medium : Tk.padding.small + platePad
   readonly property real gap: full ? Tk.spacing.medium : Tk.spacing.small
-  readonly property real headerH: full ? Tk.px(32) : 0
-  readonly property real headerGap: full ? Tk.spacing.small : 0
   readonly property real fullWidth: Tk.px(854)
 
   // The app whose menu is open (its key), "" for none.
@@ -230,8 +228,7 @@ Item {
 
   // Its breadth with neither panel open: what an always-out dock reserves,
   // so opening the menu or the previews doesn't move the windows.
-  readonly property real restBreadth: (full ? headerH + headerGap : 0)
-    + (empty ? cell : (vertical ? iconsW : iconsH)) + pad * 2
+  readonly property real restBreadth: (empty ? cell : (vertical ? iconsW : iconsH)) + pad * 2
   // How far the drawer has grown towards holding the panel (0..1): the panel
   // fades in with it, so it never shows before there is room for it.
   readonly property real grown: {
@@ -241,78 +238,15 @@ Item {
   }
 
   implicitWidth: full
-    ? Math.max(fullWidth, (empty ? cell : iconsW) + pad * 2, menuW + pad * 2)
+    ? Math.max(fullWidth, (empty ? cell : iconsW + gap + cell) + pad * 2, menuW + pad * 2)
     : empty ? cell + pad * 2 : (vertical ? iconsW + menuGap + menuW : Math.max(iconsW, menuW)) + pad * 2
-  implicitHeight: (full ? headerH + headerGap : 0)
-    + (empty ? cell + pad * 2 : (vertical ? Math.max(iconsH, menuH) : iconsH + menuGap + menuH) + pad * 2)
-
-  // Full size: a header like the other drawers, and the one obvious way to
-  // the launcher when what is pinned is not what you want.
-  Item {
-    id: header
-    visible: root.full
-    x: root.pad
-    y: root.pad
-    width: root.width - root.pad * 2
-    height: root.headerH
-    z: 2
-
-    Column {
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: 0
-      MText {
-        text: "Dock"
-        font.pointSize: Tk.title.medium
-        weight: Font.Medium
-        color: Colours.m3onSurface
-      }
-      MText {
-        text: (Config.o.dock.labels && root.hoveredName) || "Pinned and running apps"
-        font.pointSize: Tk.label.small
-        color: Colours.m3outline
-        elide: Text.ElideRight
-        width: root.width - allApps.width - Tk.spacing.extraLarge
-      }
-    }
-
-    Rectangle {
-      id: allApps
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      width: allRow.width + Tk.padding.large * 2
-      height: Tk.px(28)
-      radius: Tk.rounding.full
-      color: Colours.m3surfaceContainerHigh
-      Row {
-        id: allRow
-        anchors.centerIn: parent
-        spacing: Tk.spacing.small
-        MIcon {
-          anchors.verticalCenter: parent.verticalCenter
-          text: "apps"
-          size: Tk.iconSize.small
-          color: Colours.m3onSurface
-        }
-        MText {
-          anchors.verticalCenter: parent.verticalCenter
-          text: "All apps"
-          font.pointSize: Tk.label.large
-          color: Colours.m3onSurface
-        }
-      }
-      StateLayer {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.launcherRequested()
-      }
-    }
-  }
+  implicitHeight: empty ? cell + pad * 2
+    : (vertical ? Math.max(iconsH, menuH) : iconsH + menuGap + menuH) + pad * 2
 
   Rectangle {
     x: icons.x - root.platePad
     y: icons.y - root.platePad
-    width: icons.width + root.platePad * 2
+    width: icons.width + (allAppsTile.visible ? root.gap + allAppsTile.width : 0) + root.platePad * 2
     height: icons.height + root.platePad * 2
     radius: Tk.rounding.large
     color: Colours.m3surfaceContainer
@@ -323,8 +257,7 @@ Item {
   Item {
     visible: root.empty
     anchors.horizontalCenter: parent.horizontalCenter
-    y: root.full ? root.headerH + root.headerGap + Math.round((root.height - root.headerH - root.headerGap - root.cell) / 2)
-      : Math.round((root.height - root.cell) / 2)
+    y: Math.round((root.height - root.cell) / 2)
     width: root.cell
     height: root.cell
     MIcon {
@@ -350,9 +283,10 @@ Item {
     // grows away from it for the menu or the previews (its size animates;
     // placing them from the panel's final size made them jump out of the
     // still-small drawer and back).
-    x: root.vertical ? (root.edge === "left" ? root.pad : root.width - root.pad - width) : Math.round((root.width - width) / 2)
+    readonly property real rowW: width + (allAppsTile.visible ? root.gap + allAppsTile.width : 0)
+    x: root.vertical ? (root.edge === "left" ? root.pad : root.width - root.pad - width) : Math.round((root.width - rowW) / 2)
     y: root.vertical ? Math.round((root.height - height) / 2)
-      : (root.edge === "top" ? root.pad + (root.full ? root.headerH + root.headerGap : 0) : root.height - root.pad - height)
+      : (root.edge === "top" ? root.pad : root.height - root.pad - height)
 
     Repeater {
       model: root.slotKeys
@@ -390,6 +324,54 @@ Item {
           }
         }
       }
+    }
+  }
+
+  // The one app-adjacent way to the launcher. It sits after the icons as a
+  // tile of its own, so the full drawer needs no header row.
+  Rectangle {
+    id: allAppsSep
+    visible: allAppsTile.visible
+    x: allAppsTile.x - Math.ceil(root.gap / 2)
+    y: allAppsTile.y + Math.round((root.cell - Tk.px(24)) / 2)
+    width: 1
+    height: Tk.px(24)
+    color: Colours.m3outlineVariant
+  }
+  Item {
+    id: allAppsTile
+    visible: root.full && !root.empty
+    x: icons.x + icons.width + root.gap
+    y: icons.y
+    width: root.cell
+    height: root.cell + (Config.o.dock.labels ? Tk.px(20) : 0)
+
+    Rectangle {
+      anchors.fill: parent
+      radius: Tk.rounding.large
+      color: Qt.alpha(Colours.m3surfaceContainerHigh, 0.72)
+    }
+    MIcon {
+      anchors.horizontalCenter: parent.horizontalCenter
+      y: Math.round((root.cell - height) / 2)
+      text: "apps"
+      size: root.cell * 0.5
+      color: Colours.m3onSurface
+    }
+    MText {
+      visible: Config.o.dock.labels
+      width: root.cell
+      y: root.cell + Tk.px(2)
+      text: "All apps"
+      horizontalAlignment: Text.AlignHCenter
+      elide: Text.ElideRight
+      font.pointSize: Tk.label.small
+      color: Colours.m3onSurfaceVariant
+    }
+    StateLayer {
+      anchors.fill: parent
+      cursorShape: Qt.PointingHandCursor
+      onClicked: root.launcherRequested()
     }
   }
 
