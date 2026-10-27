@@ -16,7 +16,7 @@ ColumnLayout {
   // sub-page opened from the bottom of a long one scrolled out of view.
   onPageChanged: flick.contentY = -flick.topMargin
 
-  function groupable(r) { return r.type !== "section" && (r.type !== "custom" || r.comp === "seeds" || r.comp === "logoPicker" || r.comp === "sessionPicture" || r.comp === "screenSelect" || r.comp === "liquidPreset" || r.comp === "motionStyle") }
+  function groupable(r) { return r.type !== "section" && (r.type !== "custom" || r.comp === "seeds" || r.comp === "logoPicker" || r.comp === "sessionPicture" || r.comp === "screenSelect" || r.comp === "liquidPreset" || r.comp === "motionStyle" || r.comp === "dockPins") }
   function isFirst(i) { return i === 0 || !groupable(rows[i - 1]) }
   function isLast(i) { return i === rows.length - 1 || !groupable(rows[i + 1]) }
   function holds(r) { return Model.whenHolds(r.when, k => Config.get(k)) }
@@ -29,7 +29,7 @@ ColumnLayout {
     audio: "pages/AudioPage.qml", appVolumes: "pages/AppVolumes.qml",
     wallpapers: "pages/WallpaperGrid.qml", apps: "pages/AppsPage.qml", allApps: "pages/AllApps.qml", appInfo: "pages/AppInfo.qml",
     plugins: "pages/PluginsPage.qml", pluginInfo: "pages/PluginInfo.qml",
-    trayIcons: "pages/TrayIcons.qml", barLayout: "pages/LayoutPage.qml",
+    trayIcons: "pages/TrayIcons.qml", barLayout: "pages/LayoutPage.qml", dockPins: "pages/DockPins.qml",
     sessionPicture: "cards/SessionPicture.qml", sessionButtons: "cards/SessionButtons.qml",
     screens: "pages/ScreensCard.qml", screenSelect: "rows/ScreenSelect.qml",
     display: "pages/DisplayPage.qml", displayProfiles: "pages/DisplayProfiles.qml", displayWorkspaces: "pages/DisplayWorkspaces.qml",

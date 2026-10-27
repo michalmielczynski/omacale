@@ -421,6 +421,19 @@ QtObject {
         property int brightnessStep: 5
         property int visualiserBars: 60
       }
+      property JsonObject dock: JsonObject {
+        property bool enabled: false
+        property string visibility: "autohide"
+        property int hideDelay: 400
+        property int iconSize: 48
+        property list<string> pinned: []
+        property bool seeded: false
+        property bool showRunning: true
+        property string scope: "all"
+        property real magnify: 1.0
+        property bool labels: true
+        property bool previews: true
+      }
       property JsonObject liquid: JsonObject {
         property bool enabled: false
         property string preset: "balanced"
@@ -435,6 +448,7 @@ QtObject {
           property bool osd: true
           property bool settings: true
           property bool overview: true
+          property bool dock: true
         }
         property real stiffness: 170
         property real damping: 18

@@ -12,6 +12,7 @@ ColouredIcon 1.0 components/ColouredIcon.qml
 singleton AppService 1.0 services/AppService.qml
 singleton Colours 1.0 core/Colours.qml
 singleton Config 1.0 core/Config.qml
+singleton DockService 1.0 services/DockService.qml
 singleton Liquid 1.0 core/Liquid.qml
 singleton Morph 1.0 core/Morph.qml
 singleton Glass 1.0 core/Glass.qml
@@ -28,6 +29,9 @@ GlassMotion 1.0 components/GlassMotion.qml
 ConnectedRect 1.0 components/shapes/ConnectedRect.qml
 CoverArt 1.0 components/CoverArt.qml
 Dashboard 1.0 modules/dashboard/Dashboard.qml
+Dock 1.0 modules/dock/Dock.qml
+DockItem 1.0 modules/dock/DockItem.qml
+DockPreview 1.0 modules/dock/DockPreview.qml
 singleton GameMode 1.0 services/GameMode.qml
 IconButton 1.0 components/controls/IconButton.qml
 IdleInhibitCard 1.0 modules/utilities/IdleInhibitCard.qml

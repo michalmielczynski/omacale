@@ -29,6 +29,7 @@ function halfHours() {
 var LIQUID_ON = { key: "liquid.enabled", value: true }
 var LIQUID_CUSTOM = [LIQUID_ON, { key: "liquid.preset", value: "custom" }]
 var GLASS_ON = { key: "glass.enabled", value: true }
+var DOCK_AUTOHIDE = { key: "dock.visibility", value: "autohide" }
 
 // Does a row's `when` hold, `get` reading a setting.
 // A list may reach here as QML's own sequence, which Array.isArray doesn't
@@ -192,6 +193,7 @@ var pages = [
       { type: "toggle", key: "liquid.drawers.osd", when: LIQUID_ON, hide: true, label: "OSD" },
       { type: "toggle", key: "liquid.drawers.settings", when: LIQUID_ON, hide: true, label: "Settings" },
       { type: "toggle", key: "liquid.drawers.overview", when: LIQUID_ON, hide: true, label: "Overview" },
+      { type: "toggle", key: "liquid.drawers.dock", when: LIQUID_ON, hide: true, label: "Dock" },
       { type: "section", text: "Detach", when: LIQUID_ON, hide: true },
       { type: "toggle", key: "liquid.detach.neckBreak", when: LIQUID_ON, hide: true, label: "Neck break", subtext: "The window info panel and Settings stay joined to the bar by a thread that stretches and snaps" },
       { type: "toggle", key: "liquid.detach.ripples", when: [LIQUID_ON, { key: "liquid.detach.neckBreak", value: true }], hide: true, label: "Ripples", subtext: "Two ripples run along the bar where it snapped" },
@@ -227,6 +229,7 @@ var pages = [
     rows: [
       { type: "nav", icon: "dashboard", label: "Dashboard", page: "dashboard", status: "dashboard.enabled" },
       { type: "nav", icon: "dock_to_bottom", label: "Taskbar", page: "taskbar", status: "bar" },
+      { type: "nav", icon: "view_week", label: "Dock", page: "dock", status: "dock.enabled" },
       { type: "nav", icon: "apps", label: "Launcher", page: "launcher", status: "launcher.enabled" },
       { type: "nav", icon: "dock_to_right", label: "Sidebar", page: "sidebar", status: "sidebar.enabled" },
       { type: "nav", icon: "construction", label: "Utilities", page: "utilities", status: "utilities.enabled" },
@@ -545,6 +548,31 @@ var subpages = {
       { type: "section", text: "Behaviour" },
       { type: "toggle", key: "launcher.vimKeybinds", label: "Vim keybinds", subtext: "Navigate results with Ctrl+J / Ctrl+K" },
       { type: "toggle", key: "launcher.dangerousActions", label: "Enable dangerous actions", subtext: "Allow actions that shut down or log out" }
+    ]
+  },
+  dock: {
+    title: "Dock",
+    rows: [
+      { type: "section", text: "General" },
+      { type: "toggle", key: "dock.enabled", label: "Enabled", subtext: "A drawer of the frame on the bottom edge, opened by hovering it" },
+      { type: "select", key: "dock.visibility", label: "Visibility", subtext: "Auto-hide is the edge's hover; always keeps it out and moves windows aside", options: [
+        { value: "autohide", label: "Auto-hide", icon: "visibility_off" },
+        { value: "always", label: "Always", icon: "visibility" }
+      ] },
+      { type: "slider", key: "dock.hideDelay", when: DOCK_AUTOHIDE, label: "Hide delay", icon: "timer", from: 0, to: 2000, step: 50, unit: "ms", subtext: "0 hides as soon as the pointer leaves, like the dashboard" },
+      { type: "slider", key: "dock.iconSize", label: "Icon size", icon: "apps", from: 32, to: 72, step: 2, unit: "px" },
+      { type: "section", text: "Content" },
+      { type: "toggle", key: "dock.showRunning", label: "Running apps", subtext: "After the pins, every open app that isn't pinned" },
+      { type: "select", key: "dock.scope", label: "Show", subtext: "Which windows count for the running apps", options: [
+        { value: "all", label: "All workspaces", icon: "select_all" },
+        { value: "monitor", label: "This monitor", icon: "monitor" },
+        { value: "workspace", label: "This workspace", icon: "workspaces" }
+      ] },
+      { type: "toggle", key: "dock.labels", label: "Names on hover", subtext: "The app's name over the icon under the pointer" },
+      { type: "toggle", key: "dock.previews", label: "Live previews", subtext: "After resting on an open app, its windows as live cards" },
+      { type: "slider", key: "dock.magnify", label: "Magnification", icon: "zoom_in", from: 1, to: 1.3, step: 0.01, unit: "x", subtext: "1 is off; the icons lean towards the pointer" },
+      { type: "section", text: "Pinned" },
+      { type: "custom", comp: "dockPins" }
     ]
   },
   session: {

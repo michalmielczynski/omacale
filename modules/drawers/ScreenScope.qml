@@ -109,6 +109,44 @@ Scope {
   }
   property bool utilities: false
   property bool overview: false
+  // The app dock (modules/dock): a drawer of the frame on the bottom edge,
+  // or the top one with a bottom bar. `autohide` is the edge's hover;
+  // `always` keeps it out and reserves its room. It is never on the bar's
+  // own edge and never over a modal panel or the drawer that shares its edge.
+  readonly property string dockEdge: scope.barPos === "bottom" ? "top" : "bottom"
+  readonly property bool dockEnabled: cfg.dock.enabled
+  property bool dockHover: false
+  property bool dockMenu: false
+  // -1 hides it (the key toggles), 0 follows the mode, 1 shows it.
+  property int dockPin: 0
+  // Set by the loader, for the reserve and the menu close.
+  property var dockLoaderItem: null
+  readonly property bool dockBlocked: settings || overview
+    || (dockEdge === "bottom" && launcher)
+    || (dockEdge === "top" && dashboard)
+  // An always-out dock keeps its room even while a drawer on its edge has
+  // pushed it away, so the windows don't jump.
+  readonly property real dockReserve: dockEnabled && cfg.dock.visibility === "always"
+    && dockPin !== -1 && !hasFullscreen ? (dockLoaderItem ? dockLoaderItem.restBreadth : 0) : 0
+  function toggleDock() {
+    if (!dockEnabled) return
+    if (dockLoaderItem) dockLoaderItem.closeMenu()
+    dockMenu = false
+    if (cfg.dock.visibility === "always") { dockPin = dockPin === -1 ? 0 : -1; dockHover = false; return }
+    if (dockPin === 1) { dockPin = 0; dockHover = false }
+    else dockPin = 1
+  }
+  onDockBlockedChanged: {
+    if (!dockBlocked) return
+    dockHover = false
+    dockMenu = false
+    if (dockLoaderItem) dockLoaderItem.closeMenu()
+  }
+  Connections {
+    target: cfg.dock
+    function onEnabledChanged() { if (!cfg.dock.enabled) { scope.dockHover = false; scope.dockMenu = false; scope.dockPin = 0 } }
+    function onVisibilityChanged() { scope.dockHover = false }
+  }
   onOverviewChanged: morphChanged("overview", overview)
   // Caelestia's OSD (modules/osd/Wrapper.qml): out on a volume or brightness
   // change for hideDelay, or while the pointer is on it.
@@ -334,6 +372,8 @@ Scope {
   function closeAll() {
     barFocus = false
     launcher = false; session = false; dashboard = false; dashShortcut = false; popout = ""; settings = false; sidebar = false; sidebarShortcut = false; utilities = false; overview = false
+    dockHover = false; dockPin = 0; dockMenu = false
+    if (dockLoaderItem) dockLoaderItem.closeMenu()
   }
 
   onUtilitiesChanged: {
@@ -390,6 +430,7 @@ Scope {
         if (!scope.overview) scope.closeAll()
         scope.overview = !scope.overview
       }
+      else if (name === "dock") scope.toggleDock()
       else if (name === "dashboard" && scope.cfg.dashboard.enabled) {
         if (arg && scope.dashboard && dash) { dash.selectTab(arg); return }
         scope.dashboard = !scope.dashboard
@@ -427,6 +468,8 @@ Scope {
     popout = ""
     sidebar = false
     utilities = false
+    dockHover = false; dockMenu = false; dockPin = 0
+    if (dockLoaderItem) dockLoaderItem.closeMenu()
   }
 
   // --------------------------------------------- reserved screen edges
@@ -440,7 +483,8 @@ Scope {
   }
   // What an edge reserves: the frame's border, or the bar's breadth on its own.
   function zoneFor(edge) {
-    return edge === barPos && cfg.bar.persistent && !barOff ? Tk.barWidth : Tk.border
+    return (edge === barPos && cfg.bar.persistent && !barOff ? Tk.barWidth : Tk.border)
+      + (edge === dockEdge ? dockReserve : 0)
   }
   Reserve { anchors.left: true; exclusiveZone: scope.zoneFor("left") }
   Reserve { anchors.top: true; exclusiveZone: scope.zoneFor("top") }
@@ -705,6 +749,12 @@ Scope {
     readonly property bool uOpen: scope.sidebar || (scope.utilities && !scope.session)
     // The OSD gives way to utilities (Caelestia osd/Wrapper.qml shouldBeActive).
     readonly property bool osdOpen: scope.osd && scope.cfg.osd.enabled && !scope.utilities
+    // The dock is out while its mode or the pointer wants it, unless a
+    // drawer on its edge or a modal panel has taken the edge.
+    readonly property bool dockOpen: scope.dockEnabled && !scope.hasFullscreen && !scope.dockBlocked
+      && scope.dockPin !== -1
+      && (scope.cfg.dock.visibility === "always" || scope.dockPin === 1 || scope.dockHover || scope.dockMenu
+          || (dockLoader.item ? dockLoader.item.pointerOn || dockLoader.item.hoveredKey !== "" : false))
     property real dOffC: dOpen ? 0 : 1
     property real lOffC: lOpen ? 0 : 1
     property real sOffC: sOpen ? 0 : 1
@@ -715,6 +765,7 @@ Scope {
     property real cpOffC: cpOpen ? 0 : 1
     property real uOffC: uOpen ? 0 : 1
     property real osdOffC: osdOpen ? 0 : 1
+    property real dockOffC: dockOpen ? 0 : 1
     Behavior on dOffC { id: dOffB; enabled: !dLiq.active; Anim { type: Morph.type(dOffB, "spatial") } }
     Behavior on lOffC { id: lOffB; enabled: !lLiq.active; Anim { type: Morph.type(lOffB, "spatial") } }
     Behavior on sOffC { id: sOffB; enabled: !sLiq.active; Anim { type: Morph.type(sOffB, "spatial") } }
@@ -731,6 +782,9 @@ Scope {
     Behavior on cpOffC { id: cpOffB; enabled: !cpLiq.active; Anim { type: Morph.type(cpOffB, "spatial") } }
     Behavior on uOffC { id: uOffB; enabled: !uLiq.active; Anim { type: Morph.type(uOffB, "spatial") } }
     Behavior on osdOffC { id: osdOffB; enabled: !osdLiq.active; Anim { type: Morph.type(osdOffB, "spatial") } }
+    // The dock is small and sits on its edge all the time: a spatial
+    // overshoot reads as a wobble, so in and out on emphasized/standard.
+    Behavior on dockOffC { id: dockOffB; enabled: !dockLiq.active; Anim { type: Morph.type(dockOffB, win.dockOpen ? "emphasized" : "standard") } }
     readonly property real dOff: morphSw.off("dashboard", dLiq.active ? dLiq.off : dOffC)
     readonly property real lOff: morphSw.off("launcher", lLiq.active ? lLiq.off : lOffC)
     readonly property real sOff: morphSw.off("session", sLiq.active ? sLiq.off : sOffC)
@@ -741,6 +795,7 @@ Scope {
     readonly property real cpOff: morphSw.off("clipboard", cpLiq.active ? cpLiq.off : cpOffC)
     readonly property real uOff: morphSw.off("utilities", uLiq.active ? uLiq.off : uOffC)
     readonly property real osdOff: osdLiq.active ? osdLiq.off : osdOffC
+    readonly property real dockOff: dockLiq.active ? dockLiq.off : dockOffC
     // How far each slides. Liquid, never past open: a spring overshoots far
     // more than Caelestia's curves, and LiquidDrawer.rect turns the
     // overshoot into length instead, so the drawer stays on its wall. The
@@ -752,6 +807,7 @@ Scope {
     readonly property real pS: slid(pLiq, pOff)
     readonly property real cpS: slid(cpLiq, cpOff)
     readonly property real osdS: slid(osdLiq, osdOff)
+    readonly property real dockS: slid(dockLiq, dockOff)
     readonly property real oS: slid(oLiq, oOff)
     readonly property real sbS: slid(sbLiq, sbOff)
     readonly property real uS: slid(uLiq, uOff)
@@ -769,6 +825,7 @@ Scope {
     readonly property bool uVis: uOff < 1
     readonly property bool sbVis: sbOff < 1
     readonly property bool osdVis: osdOff < 1
+    readonly property bool dockVis: dockOff < 1
 
     // Dashboard (top centre)
     readonly property real dw: (dash && dash.implicitWidth) || Tk.px(854)
@@ -780,6 +837,13 @@ Scope {
     property real lh: launch ? launch.implicitHeight : 0
     readonly property real lx: ax + Math.round((aw - lw) / 2)
     readonly property real ly: ay + ah - lh + (lh + 5) * lS
+    // Dock (centred on its edge, sliding out of it)
+    readonly property real dockW: dockLoader.item ? dockLoader.item.implicitWidth : 0
+    readonly property real dockH: dockLoader.item ? dockLoader.item.implicitHeight : 0
+    readonly property real dockX: ax + Math.round((aw - dockW) / 2)
+    readonly property real dockY: scope.dockEdge === "top"
+      ? ay + (-dockH - 5) * dockS
+      : ay + ah - dockH + (dockH + 5) * dockS
     // Clipboard preview (bottom, right of the launcher), Caelestia PR #1298's
     // ClipboardPreview: its own panel a gap from the launcher, sized to what
     // it shows (ClipboardPreview.fit): an image to its aspect ratio, up to the
@@ -1045,6 +1109,8 @@ Scope {
       Region { intersection: Intersection.Subtract; x: win.sideMaskX(win.sbx); y: win.sby; width: win.sbVis && !win.modal ? win.sideMaskW(win.sbx, win.sbw) : 0; height: win.sbVis ? win.sbh : 0 }
       Region { intersection: Intersection.Subtract; x: win.osdMaskX; y: win.osdY; width: win.osdVis && !win.modal ? win.osdMaskW : 0; height: win.osdVis ? win.osdH : 0 }
       Region { intersection: Intersection.Subtract; x: win.tx; y: win.ty; width: win.th > 0 && !win.modal && !scope.hasFullscreen ? win.tw : 0; height: win.th }
+      // The dock: its plate and whatever menu or previews it has grown.
+      Region { intersection: Intersection.Subtract; x: win.dockX; y: win.dockY; width: win.dockVis && !win.modal ? win.dockW : 0; height: win.dockVis ? win.dockH : 0 }
     }
 
     // Hyprland hands the keyboard to a window on the workspace you switch to,
@@ -1140,6 +1206,8 @@ Scope {
     BlobDeform { id: sbDeform; extra: sbLiq.neck; amount: 0.03; cx: win.sbx + win.sbw / 2; cy: win.sbRectY + win.sbRectH / 2 }
     BlobDeform { id: utilDeform; extra: uLiq.neck; amount: win.sbVis ? 0.1 : 0.15; cx: win.ux + win.uw / 2; cy: win.uy + win.uh / 2 }
     BlobDeform { id: osdDeform; extra: osdLiq.neck; amount: 0.25; cx: win.osdX + win.osdW / 2; cy: win.osdY + win.osdH / 2 }
+    // The dock is small and sits on the edge all the time: tiny jelly.
+    BlobDeform { id: dockDeform; extra: dockLiq.neck; amount: 0.04; cx: win.dockX + win.dockW / 2; cy: win.dockY + win.dockH / 2 }
 
     // ------------------------------------------------------ liquid
     // Settings › Motion (core/Liquid.qml), Omacale's own: each
@@ -1159,6 +1227,7 @@ Scope {
     LiquidDrawer { id: sbLiq; name: "sidebar"; open: win.sbOpen; edge: win.sideEdge }
     LiquidDrawer { id: uLiq; name: "utilities"; open: win.uOpen; edge: scope.flipV ? "top" : "bottom" }
     LiquidDrawer { id: osdLiq; name: "osd"; open: win.osdOpen; edge: win.sideEdge; canDrop: true }
+    LiquidDrawer { id: dockLiq; name: "dock"; open: win.dockOpen; edge: scope.dockEdge; canDrop: true }
     // morph: each drawer's content intro (core/Morph.qml). Inactive,
     // its fade and scale are 1 and its rise 0.
     MorphDrawer { id: dMorph; open: win.dOpen }
@@ -1171,6 +1240,7 @@ Scope {
     MorphDrawer { id: sbMorph; open: win.sbOpen }
     MorphDrawer { id: uMorph; open: win.uOpen }
     MorphDrawer { id: osdMorph; open: win.osdOpen }
+    MorphDrawer { id: dockMorph; open: win.dockOpen }
     // The neck break: the window info popout leaving the bar for the middle,
     // and Settings leaving the bar (or the popout it was opened from).
     LiquidDetach {
@@ -1204,6 +1274,7 @@ Scope {
     readonly property var oRect: oVis ? morphSw.rect("overview", oLiq.rect([ox, oy, ow, oh])) : null
     readonly property var cpRect: cpVis ? cpLiq.rect([cpx, cpy, cpw, cph]) : null
     readonly property var osdRect: osdVis ? osdLiq.rect([osdX, osdY, osdW, osdH]) : null
+    readonly property var dockRect: dockVis && dockW > 0.5 && dockH > 0.5 ? dockLiq.rect([dockX, dockY, dockW, dockH]) : null
 
     // Morph motion's panel switch (see morphChanged): the panel left, as it
     // is drawn now, and the panels a name stands for.
@@ -1228,7 +1299,7 @@ Scope {
 
     // What the glass's bevel bends (Glass.lens): the wallpaper and this
     // screen's windows, rebuilt; live only while a drawer is open.
-    readonly property bool anyDrawer: !!(dRect || lRect || sRect || pRect || nRect || uRect || sbRect || oRect || cpRect || osdRect)
+    readonly property bool anyDrawer: !!(dRect || lRect || sRect || pRect || nRect || uRect || sbRect || oRect || cpRect || osdRect || dockRect)
     Loader {
       id: glassBackdrop
       anchors.fill: parent
@@ -1252,7 +1323,7 @@ Scope {
       id: drawerMotion
       enabled: Glass.motion
       rects: [win.dRect, win.lRect, win.sRect, win.pRect, win.nRect,
-              win.uRect, win.sbRect, win.oRect, win.cpRect, win.osdRect]
+              win.uRect, win.sbRect, win.oRect, win.cpRect, win.osdRect, win.dockRect]
     }
 
     // ---------------------------------------------------- background
@@ -1296,11 +1367,12 @@ Scope {
         pointer: Glass.pointer ? Qt.vector2d(interactions.mouseX, interactions.mouseY) : Qt.vector2d(0, 0)
 
         // r0 dashboard, r1 launcher, r2 session, r3 popout, r4 settings,
-        // r5 utilities, r6 sidebar, r7 overview, r8 clipboard preview, r9 OSD.
+        // r5 utilities, r6 sidebar, r7 overview, r8 clipboard preview, r9 OSD,
+        // r10 dock.
         rects: [win.dRect, win.lRect, win.sRect, win.pRect, win.nRect,
-                win.uRect, win.sbRect, win.oRect, win.cpRect, win.osdRect]
+                win.uRect, win.sbRect, win.oRect, win.cpRect, win.osdRect, win.dockRect]
         deforms: [dashDeform.vec, launchDeform.vec, sessDeform.vec, popDeform.vec, nDeform.vec,
-                  utilDeform.vec, sbDeform.vec, oDeform.vec, cpDeform.vec, osdDeform.vec]
+                  utilDeform.vec, sbDeform.vec, oDeform.vec, cpDeform.vec, osdDeform.vec, dockDeform.vec]
         // The corner the sidebar and utilities share flattens as the sidebar
         // comes in (its left side; the right, with a right-hand bar; the
         // utilities' bottom and the sidebar's top, with a bottom bar).
@@ -1312,7 +1384,8 @@ Scope {
           pLiq.corner(win.pRect, radius), nLiq.corner(win.nRect, radius),
           uRound >= 0 ? uRound : scope.flipV ? [-1, -1, jr, -1] : scope.mirror ? [jr, -1, -1, -1] : [-1, -1, -1, jr],
           scope.flipV ? [-1, -1, -1, jr] : scope.mirror ? [-1, jr, -1, -1] : [-1, -1, jr, -1],
-          oLiq.corner(win.oRect, radius), cpLiq.corner(win.cpRect, radius), osdLiq.corner(win.osdRect, radius)]
+          oLiq.corner(win.oRect, radius), cpLiq.corner(win.cpRect, radius), osdLiq.corner(win.osdRect, radius),
+          dockLiq.corner(win.dockRect, radius)]
         bumps: pDetach.showing ? pDetach.bumps : nDetach.bumps
         // The clipboard preview is its own panel beside the launcher, as
         // Caelestia PR #1298 draws it, not a bulge of it.
@@ -1379,6 +1452,85 @@ Scope {
         if (scope.flipV) return y < win.ay + visibleH + Tk.borderRounding && inX
         return y > win.ay + win.ah - visibleH - Tk.borderRounding && inX
       }
+      // The dock: how far a point is from its edge, whether it is along the
+      // dock (its span plus a fillet), and the depth it reaches (only out, a
+      // strip as thick as the frame plus the open part).
+      function dockDepth(x, y) { return scope.dockEdge === "top" ? y : win.height - y }
+      function dockAlong(x, y) {
+        const r = Tk.borderRounding
+        return x >= win.dockX - r && x <= win.dockX + win.dockW + r
+      }
+      function onDock(x, y) {
+        // The open rect, not the animated one: while the dock is still rising
+        // the pointer is already on where it is going, and a hide timer that
+        // counted the still-small drawer would send it back down.
+        const reach = win.dockVis ? win.dockH : 0
+        return dockAlong(x, y) && dockDepth(x, y) < Tk.border + reach + Tk.borderRounding
+      }
+      // Auto-hide: out when the pointer touches the edge along the dock, away
+      // after the hide delay once it has left the dock. A dock on the bottom
+      // edge leaves the utilities' corner alone, as that corner has its own
+      // drawer.
+      function dockPointer(x, y) {
+        if (!scope.dockEnabled || scope.cfg.dock.visibility === "always" || scope.dockBlocked) return
+        if (dockAlong(x, y) && dockDepth(x, y) <= Math.max(Tk.border, 2)
+            && !(scope.dockEdge === "bottom" && inBottomUtil(x, y))) {
+          scope.dockHover = true
+          dockHide.stop()
+        } else if (scope.dockHover) {
+          if (onDock(x, y)) dockHide.stop()
+          else if (!dockHide.running) dockHide.restart()
+        }
+      }
+      Timer {
+        id: dockHide
+        interval: Math.max(0, scope.cfg.dock.hideDelay)
+        onTriggered: {
+          // A menu left behind by a pointer that has gone closes with the
+          // dock; a menu still under the pointer is kept by the poll below.
+          if (scope.dockMenu && scope.dockLoaderItem) {
+            scope.dockLoaderItem.closeMenu()
+            scope.dockMenu = false
+          }
+          scope.dockHover = false
+        }
+      }
+
+      // Hover comes from the frame's edge and the dock's own cells, but the
+      // pointer leaving the dock for a window sends no event to this surface:
+      // its mask stops at the frame. While the dock is out, ask Hyprland where
+      // the pointer is, and keep it or let it go on that answer.
+      Timer {
+        id: dockPoll
+        interval: 120
+        repeat: true
+        running: win.dockVis && scope.cfg.dock.visibility !== "always" && !scope.hasFullscreen
+        onTriggered: if (!dockCursor.running) dockCursor.running = true
+      }
+      Process {
+        id: dockCursor
+        command: ["hyprctl", "cursorpos"]
+        stdout: StdioCollector {
+          onStreamFinished: {
+            if (scope.dockBlocked) return
+            const p = String(text).split(",")
+            if (p.length < 2 || !scope.screen) return
+            const gx = Number(p[0]), gy = Number(p[1])
+            if (!isFinite(gx) || !isFinite(gy)) return
+            const x = gx - scope.screen.x, y = gy - scope.screen.y
+            const onIt = interactions.onDock(x, y)
+              || (interactions.dockAlong(x, y) && interactions.dockDepth(x, y) <= Math.max(Tk.border, 2)
+                  && !(scope.dockEdge === "bottom" && interactions.inBottomUtil(x, y)))
+            if (onIt) {
+              scope.dockHover = true
+              dockHide.stop()
+            } else if (scope.dockHover && !dockHide.running) {
+              dockHide.restart()
+            }
+          }
+        }
+      }
+
       // The dashboard hovers from the panel area's top edge (below a bar on the
       // top edge, whose own strip belongs to its popouts).
       function inTopDash(x, y) {
@@ -1402,8 +1554,13 @@ Scope {
       // drawers' edge (away from it, with a right-hand bar).
       function sideInward(dx) { return scope.mirror ? dx : -dx }
 
+      onEntered: dockPointer(mouseX, mouseY)
       onPressed: e => {
         dragStart = Qt.point(e.x, e.y)
+        if (scope.dockMenu && !(e.x >= win.dockX && e.x <= win.dockX + win.dockW && e.y >= win.dockY && e.y <= win.dockY + win.dockH)) {
+          if (scope.dockLoaderItem) scope.dockLoaderItem.closeMenu()
+          scope.dockMenu = false
+        }
         // A click on the scrim (outside the settings panel) closes it.
         if (scope.settings && !(e.x >= win.nx && e.x <= win.nx + win.nw && e.y >= win.ny && e.y <= win.ny + win.nh)) scope.settings = false
         if (scope.overview && !(e.x >= win.ox && e.x <= win.ox + win.ow && e.y >= win.oy && e.y <= win.oy + win.oh)) scope.overview = false
@@ -1461,6 +1618,7 @@ Scope {
         // Dashboard: hover the top edge.
         if (scope.cfg.dashboard.enabled) {
           const showDash = scope.cfg.dashboard.showOnHover && inTopDash(x, y)
+            && !(scope.dockEnabled && scope.dockEdge === "top" && scope.cfg.dock.visibility !== "always" && dockAlong(x, y))
           if (!scope.dashShortcut) scope.dashboard = showDash
           // Caelestia hands a shortcut-opened dashboard to the pointer once it
           // hovers it -- which also takes the keyboard away. Not mid-way
@@ -1500,6 +1658,7 @@ Scope {
           else if (showUtil && !drawerNav.cursor) scope.utilShortcut = false
         }
 
+        dockPointer(x, y)
         updatePointer(x, y)
       }
 
@@ -1718,6 +1877,47 @@ Scope {
           onDismissed: scope.launcher = false
           onOpenSettings: { scope.launcher = false; scope.settings = true }
           onClipRowChanged: if (clipRow) win.cpRow = clipRow
+        }
+      }
+
+      // ---- dock
+      // Kept while it is enabled, out or not: its rest size is what the hover
+      // strip and the reserved edge go by.
+      Loader {
+        id: dockLoader
+        active: scope.dockEnabled
+        onItemChanged: scope.dockLoaderItem = item
+        sourceComponent: Dock {
+          x: win.dockX
+          y: win.dockY
+          width: win.dockW
+          height: win.dockH
+          visible: win.dockVis
+          // In before it has finished rising, so the icons don't trail it.
+          opacity: dockLiq.active ? dockLiq.contentOpacity : (1 - win.dockOff) * dockMorph.fade
+          transform: [
+            Matrix4x4 { matrix: dockDeform.matrixAt(win.dockW / 2, win.dockH / 2) },
+            Scale {
+              origin.x: win.dockW / 2
+              origin.y: scope.dockEdge === "top" ? 0 : win.dockH
+              xScale: dockLiq.contentScale[0]
+              yScale: dockLiq.contentScale[1]
+            },
+            Scale { origin.x: win.dockW / 2; origin.y: win.dockH / 2; xScale: dockMorph.grow; yScale: dockMorph.grow },
+            Translate { y: dockMorph.rise }
+          ]
+          edge: scope.dockEdge
+          workspaceId: scope.monitor && scope.monitor.activeWorkspace ? scope.monitor.activeWorkspace.id : 1
+          monitorId: scope.monitor ? scope.monitor.id : -1
+          onHoverChanged: hovered => {
+            if (hovered) { scope.dockHover = true; dockHide.stop() }
+            else if (!scope.dockMenu) dockHide.restart()
+          }
+          onMenuChanged: open => {
+            scope.dockMenu = open
+            if (!open && !scope.dockHover) dockHide.restart()
+          }
+          onLauncherRequested: scope.launcher = true
         }
       }
 

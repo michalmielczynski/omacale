@@ -3,14 +3,14 @@ import "BlobFill.js" as BlobFill
 import "../.."
 
 // One blob group, drawn by shaders/blob.frag: Caelestia's BlobGroup with a
-// BlobInvertedRect (the frame, when `framed`) and up to ten BlobRects.
+// BlobInvertedRect (the frame, when `framed`) and up to eleven BlobRects.
 // Everything Caelestia's C++ works out per frame is done here: the rects'
 // corner radii after corner fill (BlobFill.js), and each rect's deformation
 // (a BlobDeform's `vec`, passed in `deforms`).
 ShaderEffect {
   id: root
 
-  // [[x, y, w, h], ...], up to ten; a missing or empty rect draws nothing.
+  // [[x, y, w, h], ...], up to eleven; a missing or empty rect draws nothing.
   property var rects: []
   // Per rect: a radius, or [tr, br, bl, tl]; -1 (or missing) is `radius`.
   property var corners: []
@@ -82,6 +82,7 @@ ShaderEffect {
   property rect r7: rectAt(7)
   property rect r8: rectAt(8)
   property rect r9: rectAt(9)
+  property rect r10: rectAt(10)
   property vector4d c0: radiiAt(0)
   property vector4d c1: radiiAt(1)
   property vector4d c2: radiiAt(2)
@@ -92,6 +93,7 @@ ShaderEffect {
   property vector4d c7: radiiAt(7)
   property vector4d c8: radiiAt(8)
   property vector4d c9: radiiAt(9)
+  property vector4d c10: radiiAt(10)
   property vector4d d0: deformAt(0)
   property vector4d d1: deformAt(1)
   property vector4d d2: deformAt(2)
@@ -102,6 +104,7 @@ ShaderEffect {
   property vector4d d7: deformAt(7)
   property vector4d d8: deformAt(8)
   property vector4d d9: deformAt(9)
+  property vector4d d10: deformAt(10)
   property real excl56: excludes(5, 6) ? 1 : 0
   property real excl18: excludes(1, 8) ? 1 : 0
   property vector4d b0: bumpAt(0)
@@ -110,6 +113,6 @@ ShaderEffect {
   property vector4d b3: bumpAt(3)
   property vector4d m0: Qt.vector4d(motionAt(0), motionAt(1), motionAt(2), motionAt(3))
   property vector4d m1: Qt.vector4d(motionAt(4), motionAt(5), motionAt(6), motionAt(7))
-  property vector4d m2: Qt.vector4d(motionAt(8), motionAt(9), 0, 0)
+  property vector4d m2: Qt.vector4d(motionAt(8), motionAt(9), motionAt(10), 0)
   property vector4d bk: Qt.vector4d(bumpBlend(0), bumpBlend(1), bumpBlend(2), bumpBlend(3))
 }

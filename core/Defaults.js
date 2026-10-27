@@ -114,6 +114,23 @@ var values = {
   // Caelestia services / dashboard polling. Steps are Omarchy's 5%, not
   // Caelestia's 10%, so the bar scrolls like Omarchy's volume keys.
   services: { mediaUpdateInterval: 500, resourceUpdateInterval: 1000, volumeStep: 5, brightnessStep: 5, visualiserBars: 60 },
+  // The app dock (modules/dock): a drawer of the frame on the bottom edge
+  // (the top one with a bottom bar), in launcher's tokens. `visibility`
+  // autohide (the edge's hover) or always (reserves its room). `scope` is
+  // all running windows, only this monitor's or only this workspace's.
+  dock: {
+    enabled: false,
+    visibility: "autohide",  // autohide | always
+    hideDelay: 400,          // ms after the pointer leaves it
+    iconSize: 48,
+    pinned: [],              // desktop ids, in dock order
+    seeded: false,           // the first enable filled pinned from the launcher
+    showRunning: true,
+    scope: "all",            // all | monitor | workspace
+    magnify: 1.0,            // 1 is off; 1.25 is a gentle macOS lean
+    labels: true,            // the app's name over the hovered icon
+    previews: true           // live window cards after a rest on an open app
+  },
   // Liquid motion (Settings › Motion): springs, necks and drops on
   // top of Caelestia's drawers. Off, Omacale moves exactly as
   // Caelestia does. `preset` other than "custom" overrides the numbers below
@@ -122,7 +139,7 @@ var values = {
     enabled: false,
     preset: "balanced",      // subtle | balanced | bouncy | custom
     style: "slide",          // slide (Caelestia's path) | drop (grow out of a narrow drop)
-    drawers: { dashboard: true, launcher: true, session: true, utilities: true, sidebar: true, popouts: true, osd: true, settings: true, overview: true },
+    drawers: { dashboard: true, launcher: true, session: true, utilities: true, sidebar: true, popouts: true, osd: true, settings: true, overview: true, dock: true },
     stiffness: 170, damping: 18,
     bulge: 0.6,
     neck: true, neckWidth: 20,
