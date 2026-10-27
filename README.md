@@ -4,7 +4,19 @@ A [Caelestia](https://github.com/caelestia-dots/shell)-style desktop shell for [
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-![Omacale preview](preview.webp)
+![The Omacale dock](dock-preview.gif)
+
+*The dock: hover the bottom edge and it slides out of the frame. [Full 15 s screencast](dock-preview.mp4).*
+
+> **This fork — `dock-r10`.** It adds a native application dock to Omacale 0.55.1: an eleventh drawer of the frame (`r10`), opened by hovering the bottom edge. The dock is part of the shell, not a separate plugin. The branch also carries the local bar/theme customizations this fork was built on.
+>
+> ```bash
+> git clone -b dock-r10 https://github.com/michalmielczynski/omacale.git
+> cd omacale
+> ./install.sh
+> ```
+>
+> [Full 15 s screencast](dock-preview.mp4) · [Rest of the Omacale README below](#features)
 
 ![Omacale with the Glass theme](glass-preview.webp)
 
@@ -15,6 +27,7 @@ Omacale is a single Omarchy bar plugin (`omacale.bar`). It runs inside Omarchy's
 ## Features
 
 - **Frame and drawers**: Caelestia's shader-drawn screen frame, with dashboard, launcher, sidebar, utilities, session and settings sliding out of it.
+- **Dock (this fork)**: a native dock drawn as the frame's eleventh drawer (`r10`) on the bottom edge. Hover the edge to reveal it; pinned and running apps, window dots, names Off / On hover / Always, live previews, right-click menu and drag-to-reorder pins. Compact and Full sizes; auto-hide, always-out or focus-dismissed. Settings › Panels › Dock, or `omarchy-shell omacale dock`.
 - **Liquid motion** (optional, off by default; Settings › Motion): the drawers move on springs that overshoot and settle and can be turned round mid-way, are joined to the frame by a liquid neck that is thickest halfway, are a little narrower on the way and round as a drop before they square up, bulge on the overshoot, and sag and shake once as they land. They can slide out of the frame as Caelestia's do, or grow out of it from a narrow drop. The window info panel and Settings stay joined to the bar by a thread that stretches and snaps as they leave, leaving two ripples and a small drop on the edge. Pick a preset (Subtle, Balanced, Bouncy) or tune every number under Custom, turn each piece and each drawer on or off, and watch it in the live preview at the top of the page. Off, everything moves exactly as Caelestia's.
 - **Glass** (optional, off by default; Settings › Glass): the frame and drawers turn to frosted glass, as in Vitreus. They're translucent over Hyprland's blur and lighter than what's behind them, with faint veil cards, an edge lit from the top left or from the pointer, and a shadow only around them. Frosted, Clear or Smoked tone. While it is on, Hyprland's blur is tuned for it (no grain, natural colour, adjustable strength), and your own blur settings come back exactly when it's off. Off, everything looks exactly as Caelestia's.
 - **Material 3 colours** generated from your Omarchy theme, or the theme's own colours, light or dark exactly as Omarchy decides it. Optionally Omarchy's own menus, popups and notifications follow the Material palette too (a marked, removable block in `~/.config/omarchy/shell.toml`).
@@ -35,6 +48,20 @@ Omacale is a single Omarchy bar plugin (`omacale.bar`). It runs inside Omarchy's
 - **Settings app** for everything above, applied live.
 - **UI scale**: follows Omarchy's font size (`[font] base-size` in `~/.config/omarchy/shell.toml`) or a size of your own, with separate text, padding, spacing and rounding scales. Unlike Caelestia, the drawers and bar scale with it too, so a smaller UI also takes less room. With `omacale.lua` loaded, Hyprland's gaps and window rounding follow as well: window corners stay concentric with the frame (window radius = frame radius − gap).
 
+## Dock
+
+The dock is not another panel on top of Omacale: it is a drawer of the same frame, with the same `blob.frag` glass, corner fill, Morph/Liquid motion and theme tokens as the dashboard and utilities. It takes the bottom edge (or the top one when the bar is at the bottom) and is blocked by the launcher, Settings, the overview and fullscreen.
+
+- **Open**: hover the dock's edge; it closes after **Settings › Panels › Dock › Hide delay** (default 400 ms) once the pointer leaves. It also closes on focus changes and after an app is activated.
+- **Size**: **Compact** is the icon pill; **Full** is the wide drawer with room for names and an `All apps` tile. Both live in Settings › Panels › Dock › Size.
+- **Names**: **Off** (default; clean icons), **On hover** (a name only under the pointer) or **Always** (under every icon). Compact keeps the hover pill.
+- **Content**: pinned apps, then running apps; each pinned app owns the windows launched from it, including TUI windows in a pinned terminal. Window dots show active and open windows; right-click gives Pin/Unpin, New window, Move windows here and Close; pins can be dragged to reorder.
+- **Previews**: resting on an open app shows its windows as live cards (Settings › Panels › Dock › Live previews).
+- **Always out**: reserves its breadth, so windows make room; auto-hide doesn't.
+- **Limitations**: the dock is horizontal (bottom, or top with a bottom bar); side docks aren't implemented. It is a fork addition, not upstream Omacale.
+
+The drawer implementation started from [Omacale PR #19](https://github.com/AyushKr2003/omacale/pull/19) by [@Ozancann01](https://github.com/Ozancann01), adapted to 0.55.1's glass and Morph.
+
 ## Requirements
 
 - Omarchy, with its shell running
@@ -45,10 +72,12 @@ Omacale is a single Omarchy bar plugin (`omacale.bar`). It runs inside Omarchy's
 ## Install
 
 ```bash
-git clone https://github.com/AyushKr2003/omacale.git
+git clone -b dock-r10 https://github.com/michalmielczynski/omacale.git
 cd omacale
 ./install.sh
 ```
+
+This branch is the dock fork. For stock Omacale, clone [upstream](https://github.com/AyushKr2003/omacale).
 
 The installer copies the plugin to `~/.config/omarchy/plugins/omacale.bar`, makes it the active bar, and records your previous setup so it can be restored.
 
@@ -133,7 +162,7 @@ A focus ring appears only when you use the keys, so mouse use is unchanged.
 ### Command line
 
 ```bash
-omarchy-shell omacale <launcher|dashboard|sidebar|utilities|overview|session|settings|close>
+omarchy-shell omacale <launcher|dashboard|sidebar|utilities|overview|session|settings|dock|close>
 omarchy-shell omacale <wallpapers|themes|menu|clipboard|windowInfo|barFocus>
 omarchy-shell omacale dashboardTab <dashboard|media|performance|weather>
 omarchy-shell omacale settingsPage <page>
@@ -186,6 +215,7 @@ What changed in each version is in [`CHANGELOG.md`](CHANGELOG.md).
 - Caelestia's battery level warnings aren't ported, since Omarchy's battery service already sends them. Its VPN and keyboard layout toasts aren't either, since Omacale has neither feature.
 - The lock screen shows the wallpaper by default. With **Use the wallpaper** off it shows a blurred snapshot of the screen, as Caelestia does; if the snapshot can't be taken (the display is off, say), it falls back to the wallpaper. With a video wallpaper, the blur applies to its still frame only.
 - Notifications support their default action only; there are no inline replies (Caelestia has none either).
+- The dock is horizontal only (bottom, or top with a bottom bar); side docks are not implemented.
 - Liquid motion is motion only, not glass: Quickshell can't see what is behind its own window, so there is no refraction. The frame and drawers keep Omacale's own surface (and its transparency and blur settings).
 
 ## Credits
@@ -193,6 +223,7 @@ What changed in each version is in [`CHANGELOG.md`](CHANGELOG.md).
 - UI and shaders: [caelestia-dots/shell](https://github.com/caelestia-dots/shell) (GPL-3.0)
 - Liquid motion: the springs, necks and drops of [Vitreus](https://github.com/natepayn3/Vitreus) (MIT), written for [pleamar](https://github.com/k4ditano/pleamar)
 - Workspace overview: adapted from [omarchy-overview](https://github.com/AyushKr2003/omarchy-overview) and [quickshell-overview](https://github.com/Shanu-Kumawat/quickshell-overview)
+- Dock: started from [Omacale PR #19](https://github.com/AyushKr2003/omacale/pull/19) by [@Ozancann01](https://github.com/Ozancann01), adapted to 0.55.1
 - Fonts: Google Sans Flex and Rubik (SIL Open Font License)
 
 ## License
