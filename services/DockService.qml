@@ -115,6 +115,10 @@ QtObject {
       byKeyOut[key] = it
       out.push(it)
     }
+    // A pinned terminal owns the TUI windows launched in it: they fall back
+    // to the same icon, so showing them again under Running repeated the
+    // pin. With no pinned terminal they stay apps of their own.
+    const pinnedTerminal = out.find(x => x.pinned && WindowIcons.isTerminalClass(x.id))
     const vals = Hyprland.toplevels.values
     for (let i = 0; i < vals.length; i++) {
       const d = vals[i].lastIpcObject
@@ -125,6 +129,8 @@ QtObject {
       const e = entryFor(d)
       const key = e ? "app:" + e.id : "class:" + (d.class || d.initialClass || d.address)
       let it = byKeyOut[key]
+      const cls = String(d.class || d.initialClass || "")
+      if (!it && !e && pinnedTerminal && WindowIcons.isTerminalClass(cls)) it = pinnedTerminal
       if (!it) {
         if (!cfg.showRunning) continue
         it = { key: key, id: e ? e.id : "", entry: e, pinned: false,
