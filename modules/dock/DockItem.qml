@@ -35,16 +35,25 @@ Item {
   Spring {
     id: pressSpring
     value: 1
-    target: pressArea.pressed ? 0.88 : 1
-    stiffness: 520
-    damping: 24
+    target: pressArea.pressed ? 0.84 : 1
+    stiffness: 340
+    damping: 18
+  }
+  // The click adds a small upward kick on top of the press, so the icon is
+  // seen letting go before the drawer slides away.
+  Spring {
+    id: launchSpring
+    value: 1
+    target: 1
+    stiffness: 280
+    damping: 16
   }
 
   transform: Scale {
     origin.x: root.edge === "left" ? 0 : root.edge === "right" ? root.width : root.width / 2
     origin.y: root.edge === "top" ? 0 : root.edge === "bottom" ? root.height : root.height / 2
-    xScale: root.mag * pressSpring.value
-    yScale: root.mag * pressSpring.value
+    xScale: root.mag * pressSpring.value * launchSpring.value
+    yScale: root.mag * pressSpring.value * launchSpring.value
   }
 
   readonly property int dots: Math.min(3, modelData.windows.length)
@@ -92,6 +101,7 @@ Item {
         if (dragging) { dragging = false; return }
         if (e && e.button === Qt.RightButton) root.menuRequested()
         else {
+          launchSpring.impulse(2.8)
           root.dismissRequested()
           if (e && e.button === Qt.MiddleButton) DockService.launch(root.modelData)
           else DockService.activate(root.modelData)
@@ -112,7 +122,7 @@ Item {
       : Math.round((root.height - height) / 2 + (root.edge === "top" ? away : root.edge === "bottom" ? -away : 0))
     asynchronous: true
     source: root.modelData.icon
-    opacity: pressArea.pressed ? 0.9 : 1
+    opacity: pressArea.pressed ? 0.82 : 1
     Behavior on opacity { Anim { type: "fastEffects" } }
   }
 

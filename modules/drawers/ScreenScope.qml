@@ -122,6 +122,9 @@ Scope {
   // A click on an app (or All apps) dismisses the hover-opened dock at once;
   // the poll below clears it once the pointer has left the dock.
   property bool dockDismissed: false
+  // A click or a focus change arms this; the icon gets its spring back
+  // before the drawer actually leaves.
+  property bool dockDismissPending: false
   // Set by the loader, for the reserve and the menu close.
   property var dockLoaderItem: null
   readonly property bool dockBlocked: settings || overview
@@ -134,6 +137,8 @@ Scope {
   function toggleDock() {
     if (!dockEnabled) return
     dockDismissed = false
+    dockDismissPending = false
+    dockDismissDelay.stop()
     if (dockLoaderItem) dockLoaderItem.closeMenu()
     dockMenu = false
     if (cfg.dock.visibility === "always") { dockPin = dockPin === -1 ? 0 : -1; dockHover = false; return }
@@ -146,10 +151,21 @@ Scope {
     dockMenu = false
     if (dockLoaderItem) dockLoaderItem.closeMenu()
   }
+  Timer {
+    id: dockDismissDelay
+    interval: 280
+    onTriggered: {
+      if (!scope.dockDismissPending) return
+      scope.dockDismissPending = false
+      scope.dockDismissed = scope.cfg.dock.visibility !== "always"
+      scope.dockHover = false
+      scope.dockPin = 0
+    }
+  }
   Connections {
     target: cfg.dock
-    function onEnabledChanged() { if (!cfg.dock.enabled) { scope.dockHover = false; scope.dockMenu = false; scope.dockPin = 0; scope.dockDismissed = false } }
-    function onVisibilityChanged() { scope.dockHover = false; scope.dockDismissed = false }
+    function onEnabledChanged() { if (!cfg.dock.enabled) { scope.dockHover = false; scope.dockMenu = false; scope.dockPin = 0; scope.dockDismissed = false; scope.dockDismissPending = false; dockDismissDelay.stop() } }
+    function onVisibilityChanged() { scope.dockHover = false; scope.dockDismissed = false; scope.dockDismissPending = false; dockDismissDelay.stop() }
   }
   onOverviewChanged: morphChanged("overview", overview)
   // Caelestia's OSD (modules/osd/Wrapper.qml): out on a volume or brightness
@@ -376,7 +392,8 @@ Scope {
   function closeAll() {
     barFocus = false
     launcher = false; session = false; dashboard = false; dashShortcut = false; popout = ""; settings = false; sidebar = false; sidebarShortcut = false; utilities = false; overview = false
-    dockHover = false; dockPin = 0; dockMenu = false; dockDismissed = false
+    dockHover = false; dockPin = 0; dockMenu = false; dockDismissed = false; dockDismissPending = false
+    dockDismissDelay.stop()
     if (dockLoaderItem) dockLoaderItem.closeMenu()
   }
 
@@ -464,9 +481,9 @@ Scope {
       // went to (or the keyboard picked) a window: put the dock away.
       if ((e.name === "activewindow" || e.name === "activewindowv2")
           && scope.cfg.dock.visibility !== "always" && scope.dockPin === 0
-          && scope.dockHover && !scope.dockMenu) {
-        scope.dockDismissed = true
-        scope.dockHover = false
+          && scope.dockHover && !scope.dockMenu && !scope.dockDismissPending) {
+        scope.dockDismissPending = true
+        dockDismissDelay.restart()
       }
     }
   }
@@ -480,7 +497,8 @@ Scope {
     popout = ""
     sidebar = false
     utilities = false
-    dockHover = false; dockMenu = false; dockPin = 0; dockDismissed = false
+    dockHover = false; dockMenu = false; dockPin = 0; dockDismissed = false; dockDismissPending = false
+    dockDismissDelay.stop()
     if (dockLoaderItem) dockLoaderItem.closeMenu()
   }
 
@@ -1927,13 +1945,14 @@ Scope {
           workspaceId: scope.monitor && scope.monitor.activeWorkspace ? scope.monitor.activeWorkspace.id : 1
           monitorId: scope.monitor ? scope.monitor.id : -1
           onDismissRequested: {
-            scope.dockHover = false
-            scope.dockPin = 0
-            scope.dockDismissed = scope.cfg.dock.visibility !== "always"
+            scope.dockDismissPending = true
+            dockDismissDelay.restart()
           }
           onLauncherRequested: {
             scope.launcher = true
             scope.dockHover = false
+            scope.dockDismissPending = false
+            dockDismissDelay.stop()
             scope.dockDismissed = scope.cfg.dock.visibility !== "always"
           }
           onHoverChanged: hovered => {
