@@ -17,6 +17,7 @@ Item {
   property string edge: "bottom"
   property bool menuShown: false
   property bool highlighted: false
+  property string names: "off"
   property bool previewOpen: false
   // The dock's magnification of this icon; it grows away from the edge.
   property real mag: 1
@@ -39,20 +40,24 @@ Item {
   readonly property int dots: Math.min(3, modelData.windows.length)
 
   implicitWidth: cell
-  implicitHeight: full ? cell + (Config.o.dock.labels ? Tk.px(20) : 0) : cell
+  implicitHeight: names === "always" ? cell + (full ? Tk.px(24) : Tk.px(18)) : cell
 
   Rectangle {
     id: bg
-    anchors.fill: parent
-    radius: Tk.rounding.large
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: parent.top
+    height: root.cell
+    radius: Math.min(width, height) / 2
     // Only the app whose menu is open gets a tile; the active one is told by
     // its dot, so every icon sits on the plate the same way.
-    color: root.menuShown ? Colours.m3surfaceContainerHighest : root.highlighted ? Colours.m3surfaceContainerHigh : "transparent"
+    color: root.menuShown ? Colours.m3surfaceContainerHighest : "transparent"
     Behavior on color { CAnim {} }
 
     StateLayer {
       id: stateLayer
       anchors.fill: parent
+      showHoverBackground: false
       acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
       cursorShape: dragging ? Qt.ClosedHandCursor : Qt.PointingHandCursor
       // Pressed and moved past a few px along the dock: a drag, not a click.
@@ -125,7 +130,7 @@ Item {
   Rectangle {
     id: nameLabel
     enabled: false
-    visible: !root.full && (stateLayer.containsMouse || root.highlighted) && Config.o.dock.labels
+    visible: !root.full && root.names === "hover" && (stateLayer.containsMouse || root.highlighted)
       && !root.menuShown && !root.previewOpen
     opacity: visible ? 1 : 0
     Behavior on opacity { Anim { type: "fastEffects" } }
@@ -149,13 +154,14 @@ Item {
   // tile. Compact keeps the name as a pill on hover.
   MText {
     id: fullName
-    visible: root.full && Config.o.dock.labels
+    visible: root.names === "always"
+      || (root.full && root.names === "hover" && (stateLayer.containsMouse || root.highlighted))
     width: root.cell
-    y: root.cell + Tk.px(2)
+    y: root.cell + (root.full ? Tk.px(4) : Tk.px(2))
     text: root.modelData.name || ""
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
-    font.pointSize: Tk.label.small
+    font.pointSize: root.full ? Tk.label.medium : Tk.label.small
     color: root.highlighted ? Colours.m3onSurface : Colours.m3onSurfaceVariant
   }
 }

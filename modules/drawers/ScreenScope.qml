@@ -119,6 +119,9 @@ Scope {
   property bool dockMenu: false
   // -1 hides it (the key toggles), 0 follows the mode, 1 shows it.
   property int dockPin: 0
+  // A click on an app (or All apps) dismisses the hover-opened dock at once;
+  // the poll below clears it once the pointer has left the dock.
+  property bool dockDismissed: false
   // Set by the loader, for the reserve and the menu close.
   property var dockLoaderItem: null
   readonly property bool dockBlocked: settings || overview
@@ -130,6 +133,7 @@ Scope {
     && dockPin !== -1 && !hasFullscreen ? (dockLoaderItem ? dockLoaderItem.restBreadth : 0) : 0
   function toggleDock() {
     if (!dockEnabled) return
+    dockDismissed = false
     if (dockLoaderItem) dockLoaderItem.closeMenu()
     dockMenu = false
     if (cfg.dock.visibility === "always") { dockPin = dockPin === -1 ? 0 : -1; dockHover = false; return }
@@ -144,8 +148,8 @@ Scope {
   }
   Connections {
     target: cfg.dock
-    function onEnabledChanged() { if (!cfg.dock.enabled) { scope.dockHover = false; scope.dockMenu = false; scope.dockPin = 0 } }
-    function onVisibilityChanged() { scope.dockHover = false }
+    function onEnabledChanged() { if (!cfg.dock.enabled) { scope.dockHover = false; scope.dockMenu = false; scope.dockPin = 0; scope.dockDismissed = false } }
+    function onVisibilityChanged() { scope.dockHover = false; scope.dockDismissed = false }
   }
   onOverviewChanged: morphChanged("overview", overview)
   // Caelestia's OSD (modules/osd/Wrapper.qml): out on a volume or brightness
@@ -372,7 +376,7 @@ Scope {
   function closeAll() {
     barFocus = false
     launcher = false; session = false; dashboard = false; dashShortcut = false; popout = ""; settings = false; sidebar = false; sidebarShortcut = false; utilities = false; overview = false
-    dockHover = false; dockPin = 0; dockMenu = false
+    dockHover = false; dockPin = 0; dockMenu = false; dockDismissed = false
     if (dockLoaderItem) dockLoaderItem.closeMenu()
   }
 
@@ -456,6 +460,14 @@ Scope {
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
       }
+      // A focus change while the hover-opened dock is out means the pointer
+      // went to (or the keyboard picked) a window: put the dock away.
+      if ((e.name === "activewindow" || e.name === "activewindowv2")
+          && scope.cfg.dock.visibility !== "always" && scope.dockPin === 0
+          && scope.dockHover && !scope.dockMenu) {
+        scope.dockDismissed = true
+        scope.dockHover = false
+      }
     }
   }
   onHasFullscreenChanged: {
@@ -468,7 +480,7 @@ Scope {
     popout = ""
     sidebar = false
     utilities = false
-    dockHover = false; dockMenu = false; dockPin = 0
+    dockHover = false; dockMenu = false; dockPin = 0; dockDismissed = false
     if (dockLoaderItem) dockLoaderItem.closeMenu()
   }
 
@@ -753,6 +765,7 @@ Scope {
     // drawer on its edge or a modal panel has taken the edge.
     readonly property bool dockOpen: scope.dockEnabled && !scope.hasFullscreen && !scope.dockBlocked
       && scope.dockPin !== -1
+      && (!scope.dockDismissed || scope.cfg.dock.visibility === "always")
       && (scope.cfg.dock.visibility === "always" || scope.dockPin === 1 || scope.dockHover || scope.dockMenu
           || (dockLoader.item ? dockLoader.item.pointerOn || dockLoader.item.hoveredKey !== "" : false))
     property real dOffC: dOpen ? 0 : 1
@@ -1472,7 +1485,7 @@ Scope {
       // edge leaves the utilities' corner alone, as that corner has its own
       // drawer.
       function dockPointer(x, y) {
-        if (!scope.dockEnabled || scope.cfg.dock.visibility === "always" || scope.dockBlocked) return
+        if (!scope.dockEnabled || scope.cfg.dock.visibility === "always" || scope.dockBlocked || scope.dockDismissed) return
         if (dockAlong(x, y) && dockDepth(x, y) <= Math.max(Tk.border, 2)
             && !(scope.dockEdge === "bottom" && inBottomUtil(x, y))) {
           scope.dockHover = true
@@ -1504,7 +1517,7 @@ Scope {
         id: dockPoll
         interval: 120
         repeat: true
-        running: win.dockVis && scope.cfg.dock.visibility !== "always" && !scope.hasFullscreen
+        running: (win.dockVis || scope.dockDismissed) && scope.cfg.dock.visibility !== "always" && !scope.hasFullscreen
         onTriggered: if (!dockCursor.running) dockCursor.running = true
       }
       Process {
@@ -1521,6 +1534,10 @@ Scope {
             const onIt = interactions.onDock(x, y)
               || (interactions.dockAlong(x, y) && interactions.dockDepth(x, y) <= Math.max(Tk.border, 2)
                   && !(scope.dockEdge === "bottom" && interactions.inBottomUtil(x, y)))
+            if (scope.dockDismissed) {
+              if (!onIt) { scope.dockDismissed = false; scope.dockHover = false }
+              return
+            }
             if (onIt) {
               scope.dockHover = true
               dockHide.stop()
@@ -1909,6 +1926,16 @@ Scope {
           edge: scope.dockEdge
           workspaceId: scope.monitor && scope.monitor.activeWorkspace ? scope.monitor.activeWorkspace.id : 1
           monitorId: scope.monitor ? scope.monitor.id : -1
+          onDismissRequested: {
+            scope.dockHover = false
+            scope.dockPin = 0
+            scope.dockDismissed = scope.cfg.dock.visibility !== "always"
+          }
+          onLauncherRequested: {
+            scope.launcher = true
+            scope.dockHover = false
+            scope.dockDismissed = scope.cfg.dock.visibility !== "always"
+          }
           onHoverChanged: hovered => {
             if (hovered) { scope.dockHover = true; dockHide.stop() }
             else if (!scope.dockMenu) dockHide.restart()
@@ -1917,7 +1944,6 @@ Scope {
             scope.dockMenu = open
             if (!open && !scope.dockHover) dockHide.restart()
           }
-          onLauncherRequested: scope.launcher = true
         }
       }
 

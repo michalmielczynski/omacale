@@ -129,7 +129,7 @@ var values = {
     showRunning: true,
     scope: "all",            // all | monitor | workspace
     magnify: 1.0,            // 1 is off; 1.25 is a gentle macOS lean
-    labels: true,            // the app's name over the hovered icon
+    names: "off",            // off | hover (a name on hover) | always (under the icons)
     previews: true           // live window cards after a rest on an open app
   },
   // Liquid motion (Settings › Motion): springs, necks and drops on

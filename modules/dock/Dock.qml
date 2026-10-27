@@ -22,18 +22,20 @@ Item {
   // A menu or the previews keep the drawer out after the pointer leaves.
   signal menuChanged(bool open)
   signal launcherRequested
+  signal dismissRequested
   readonly property bool vertical: edge === "left" || edge === "right"
   // Compact is the original pill; full is a dashboard-sized drawer: names
   // under the icons and room for the apps to breathe.
   readonly property bool full: Config.o.dock.size === "full"
+  readonly property string names: Config.o.dock.names || "off"
   readonly property real cell: Tk.px(full ? Math.round(Config.o.dock.iconSize * 1.5) : Config.o.dock.iconSize)
   // The icons sit on a plate of their own inside the drawer: with a theme
   // whose surface is the windows' colour (a black one) the drawer alone
   // doesn't show where the dock is. The window dots live in its margin.
   readonly property real platePad: Tk.padding.small
-  readonly property real pad: full ? Tk.padding.medium : Tk.padding.small + platePad
+  readonly property real pad: full ? Tk.padding.largeIncreased : Tk.padding.small + platePad
   readonly property real gap: full ? Tk.spacing.medium : Tk.spacing.small
-  readonly property real fullWidth: Tk.px(854)
+  readonly property real fullMinWidth: Tk.px(560)
 
   // The app whose menu is open (its key), "" for none.
   property string menuKey: ""
@@ -238,7 +240,7 @@ Item {
   }
 
   implicitWidth: full
-    ? Math.max(fullWidth, (empty ? cell : iconsW + gap + cell) + pad * 2, menuW + pad * 2)
+    ? Math.max(fullMinWidth, (empty ? cell : iconsW + gap + cell) + pad * 2, menuW + pad * 2)
     : empty ? cell + pad * 2 : (vertical ? iconsW + menuGap + menuW : Math.max(iconsW, menuW)) + pad * 2
   implicitHeight: empty ? cell + pad * 2
     : (vertical ? Math.max(iconsH, menuH) : iconsH + menuGap + menuH) + pad * 2
@@ -267,7 +269,9 @@ Item {
       color: Colours.m3onSurfaceVariant
     }
     StateLayer {
-      anchors.fill: parent
+      width: parent.width
+      height: root.cell
+      radius: root.cell / 2
       cursorShape: Qt.PointingHandCursor
       onClicked: root.launcherRequested()
     }
@@ -306,12 +310,13 @@ Item {
             modelData: slot.entry.app
             cell: root.cell
             full: root.full
+            names: root.names
             edge: root.edge
             mag: root.scales[slot.index] || 1
             menuShown: root.menuKey === modelData.key
             highlighted: root.hoveredKey === modelData.key
             previewOpen: root.previewOpen
-            onDismissRequested: root.closeMenu()
+            onDismissRequested: root.dismissRequested()
             onHoverChanged: hovered => {
               if (hovered) root.hoveredKey = modelData.key
               else if (root.hoveredKey === modelData.key) root.hoveredKey = ""
@@ -333,9 +338,9 @@ Item {
     id: allAppsSep
     visible: allAppsTile.visible
     x: allAppsTile.x - Math.ceil(root.gap / 2)
-    y: allAppsTile.y + Math.round((root.cell - Tk.px(24)) / 2)
+    y: allAppsTile.y + Math.round((root.cell - Tk.px(34)) / 2)
     width: 1
-    height: Tk.px(24)
+    height: Tk.px(34)
     color: Colours.m3outlineVariant
   }
   Item {
@@ -344,32 +349,31 @@ Item {
     x: icons.x + icons.width + root.gap
     y: icons.y
     width: root.cell
-    height: root.cell + (Config.o.dock.labels ? Tk.px(20) : 0)
+    height: root.cell + (root.names === "always" ? Tk.px(24) : 0)
 
-    Rectangle {
-      anchors.fill: parent
-      radius: Tk.rounding.large
-      color: Qt.alpha(Colours.m3surfaceContainerHigh, 0.72)
-    }
     MIcon {
       anchors.horizontalCenter: parent.horizontalCenter
       y: Math.round((root.cell - height) / 2)
       text: "apps"
-      size: root.cell * 0.5
-      color: Colours.m3onSurface
+      size: root.cell * 0.54
+      color: Colours.m3onSurfaceVariant
     }
     MText {
-      visible: Config.o.dock.labels
+      visible: root.names === "always" || (root.names === "hover" && allAppsState.containsMouse)
       width: root.cell
-      y: root.cell + Tk.px(2)
+      y: root.cell + Tk.px(4)
       text: "All apps"
       horizontalAlignment: Text.AlignHCenter
       elide: Text.ElideRight
-      font.pointSize: Tk.label.small
+      font.pointSize: Tk.label.medium
       color: Colours.m3onSurfaceVariant
     }
     StateLayer {
-      anchors.fill: parent
+      id: allAppsState
+      showHoverBackground: false
+      width: parent.width
+      height: root.cell
+      radius: root.cell / 2
       cursorShape: Qt.PointingHandCursor
       onClicked: root.launcherRequested()
     }
@@ -379,7 +383,7 @@ Item {
     id: divider
     Item {
       implicitWidth: root.vertical ? root.cell : Tk.px(1) + root.gap
-      implicitHeight: root.vertical ? Tk.px(1) + root.gap : (root.full && Config.o.dock.labels ? root.cell + Tk.px(20) : root.cell)
+      implicitHeight: root.vertical ? Tk.px(1) + root.gap : (root.names === "always" ? root.cell + (root.full ? Tk.px(24) : Tk.px(18)) : root.cell)
       Rectangle {
         anchors.centerIn: parent
         width: root.vertical ? root.cell * 0.6 : 1

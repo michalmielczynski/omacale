@@ -432,7 +432,7 @@ QtObject {
         property bool showRunning: true
         property string scope: "all"
         property real magnify: 1.0
-        property bool labels: true
+        property string names: "off"
         property bool previews: true
       }
       property JsonObject liquid: JsonObject {

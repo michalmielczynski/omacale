@@ -571,7 +571,11 @@ var subpages = {
         { value: "monitor", label: "This monitor", icon: "monitor" },
         { value: "workspace", label: "This workspace", icon: "workspaces" }
       ] },
-      { type: "toggle", key: "dock.labels", label: "Names", subtext: "Always under the icons in Full; over the icon on hover in Compact" },
+      { type: "select", key: "dock.names", label: "Names", subtext: "Off keeps the icons clean; On hover shows the name on the hovered icon; Always puts it under every icon", options: [
+        { value: "off", label: "Off", icon: "visibility_off" },
+        { value: "hover", label: "On hover", icon: "visibility" },
+        { value: "always", label: "Always", icon: "label" }
+      ] },
       { type: "toggle", key: "dock.previews", label: "Live previews", subtext: "After resting on an open app, its windows as live cards" },
       { type: "slider", key: "dock.magnify", label: "Magnification", icon: "zoom_in", from: 1, to: 1.3, step: 0.01, unit: "x", subtext: "1 is off; the icons lean towards the pointer" },
       { type: "section", text: "Pinned" },
