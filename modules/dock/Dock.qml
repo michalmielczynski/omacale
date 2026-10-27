@@ -268,7 +268,7 @@ Item {
         color: Colours.m3onSurface
       }
       MText {
-        text: root.hoveredName || "Pinned and running apps"
+        text: (Config.o.dock.labels && root.hoveredName) || "Pinned and running apps"
         font.pointSize: Tk.label.small
         color: Colours.m3outline
         elide: Text.ElideRight
@@ -397,7 +397,7 @@ Item {
     id: divider
     Item {
       implicitWidth: root.vertical ? root.cell : Tk.px(1) + root.gap
-      implicitHeight: root.vertical ? Tk.px(1) + root.gap : (root.full ? root.cell + Tk.px(20) : root.cell)
+      implicitHeight: root.vertical ? Tk.px(1) + root.gap : (root.full && Config.o.dock.labels ? root.cell + Tk.px(20) : root.cell)
       Rectangle {
         anchors.centerIn: parent
         width: root.vertical ? root.cell * 0.6 : 1

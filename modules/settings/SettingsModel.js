@@ -571,7 +571,7 @@ var subpages = {
         { value: "monitor", label: "This monitor", icon: "monitor" },
         { value: "workspace", label: "This workspace", icon: "workspaces" }
       ] },
-      { type: "toggle", key: "dock.labels", label: "Names on hover", subtext: "The app's name over the icon under the pointer" },
+      { type: "toggle", key: "dock.labels", label: "Names", subtext: "Always under the icons in Full; over the icon on hover in Compact" },
       { type: "toggle", key: "dock.previews", label: "Live previews", subtext: "After resting on an open app, its windows as live cards" },
       { type: "slider", key: "dock.magnify", label: "Magnification", icon: "zoom_in", from: 1, to: 1.3, step: 0.01, unit: "x", subtext: "1 is off; the icons lean towards the pointer" },
       { type: "section", text: "Pinned" },

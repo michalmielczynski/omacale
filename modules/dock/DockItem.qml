@@ -39,7 +39,7 @@ Item {
   readonly property int dots: Math.min(3, modelData.windows.length)
 
   implicitWidth: cell
-  implicitHeight: full ? cell + Tk.px(20) : cell
+  implicitHeight: full ? cell + (Config.o.dock.labels ? Tk.px(20) : 0) : cell
 
   Rectangle {
     id: bg
@@ -149,7 +149,7 @@ Item {
   // tile. Compact keeps the name as a pill on hover.
   MText {
     id: fullName
-    visible: root.full
+    visible: root.full && Config.o.dock.labels
     width: root.cell
     y: root.cell + Tk.px(2)
     text: root.modelData.name || ""
