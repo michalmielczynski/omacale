@@ -131,7 +131,7 @@ Item {
   // open: an icon still growing as the drawer grows for its windows was two
   // motions at once.
   // Measured on the dock itself, not the icons grid: the grid's own
-  // HoverHandler is under the cells' StateLayers, and a MouseArea there can
+  // HoverHandler is under the cells' own MouseAreas, and one there can
   // keep it from seeing the pointer.
   readonly property real pointerPos: dockHover.hovered && dragKey === "" && !menuOpen
     ? (vertical ? dockHover.point.position.y - icons.y : dockHover.point.position.x - icons.x)
@@ -351,6 +351,20 @@ Item {
     width: root.cell
     height: root.cell + (root.names === "always" ? Tk.px(24) : 0)
 
+    Spring {
+      id: allAppsSpring
+      value: 1
+      target: allAppsPress.pressed ? 0.9 : 1
+      stiffness: 520
+      damping: 24
+    }
+    transform: Scale {
+      origin.x: width / 2
+      origin.y: height / 2
+      xScale: allAppsSpring.value
+      yScale: allAppsSpring.value
+    }
+
     MIcon {
       anchors.horizontalCenter: parent.horizontalCenter
       y: Math.round((root.cell - height) / 2)
@@ -359,7 +373,7 @@ Item {
       color: Colours.m3onSurfaceVariant
     }
     MText {
-      visible: root.names === "always" || (root.names === "hover" && allAppsState.containsMouse)
+      visible: root.names === "always" || (root.names === "hover" && allAppsPress.containsMouse)
       width: root.cell
       y: root.cell + Tk.px(4)
       text: "All apps"
@@ -368,12 +382,10 @@ Item {
       font.pointSize: Tk.label.medium
       color: Colours.m3onSurfaceVariant
     }
-    StateLayer {
-      id: allAppsState
-      showHoverBackground: false
-      width: parent.width
-      height: root.cell
-      radius: root.cell / 2
+    MouseArea {
+      id: allAppsPress
+      anchors.fill: parent
+      hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: root.launcherRequested()
     }

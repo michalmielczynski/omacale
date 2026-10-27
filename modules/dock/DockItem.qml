@@ -4,8 +4,8 @@ import "../.."
 
 // One app in the dock: its icon on a rounded cell, and a dot per open window
 // (up to three) on the side facing the dock's edge, the active app's in
-// m3primary. No Caelestia original (Caelestia has no dock); the cell is drawn
-// like the launcher's rows (StateLayer on a rounded surface).
+// m3primary. No Caelestia original (Caelestia has no dock); the cell is a
+// plain icon that gives under a press and springs back.
 Item {
   id: root
 
@@ -30,11 +30,21 @@ Item {
   signal dragEnded(real offset)
   readonly property bool vert: edge === "left" || edge === "right"
 
+  // Press: the icon gives a little under the finger and springs back; no
+  // Material ripple. Omacale's own motion is springs and jelly, not circles.
+  Spring {
+    id: pressSpring
+    value: 1
+    target: pressArea.pressed ? 0.88 : 1
+    stiffness: 520
+    damping: 24
+  }
+
   transform: Scale {
     origin.x: root.edge === "left" ? 0 : root.edge === "right" ? root.width : root.width / 2
     origin.y: root.edge === "top" ? 0 : root.edge === "bottom" ? root.height : root.height / 2
-    xScale: root.mag
-    yScale: root.mag
+    xScale: root.mag * pressSpring.value
+    yScale: root.mag * pressSpring.value
   }
 
   readonly property int dots: Math.min(3, modelData.windows.length)
@@ -54,10 +64,10 @@ Item {
     color: root.menuShown ? Colours.m3surfaceContainerHighest : "transparent"
     Behavior on color { CAnim {} }
 
-    StateLayer {
-      id: stateLayer
+    MouseArea {
+      id: pressArea
       anchors.fill: parent
-      showHoverBackground: false
+      hoverEnabled: true
       acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
       cursorShape: dragging ? Qt.ClosedHandCursor : Qt.PointingHandCursor
       // Pressed and moved past a few px along the dock: a drag, not a click.
@@ -102,6 +112,8 @@ Item {
       : Math.round((root.height - height) / 2 + (root.edge === "top" ? away : root.edge === "bottom" ? -away : 0))
     asynchronous: true
     source: root.modelData.icon
+    opacity: pressArea.pressed ? 0.9 : 1
+    Behavior on opacity { Anim { type: "fastEffects" } }
   }
 
   // The window dots, on the edge side of the cell.
@@ -130,7 +142,7 @@ Item {
   Rectangle {
     id: nameLabel
     enabled: false
-    visible: !root.full && root.names === "hover" && (stateLayer.containsMouse || root.highlighted)
+    visible: !root.full && root.names === "hover" && (pressArea.containsMouse || root.highlighted)
       && !root.menuShown && !root.previewOpen
     opacity: visible ? 1 : 0
     Behavior on opacity { Anim { type: "fastEffects" } }
@@ -155,7 +167,7 @@ Item {
   MText {
     id: fullName
     visible: root.names === "always"
-      || (root.full && root.names === "hover" && (stateLayer.containsMouse || root.highlighted))
+      || (root.full && root.names === "hover" && (pressArea.containsMouse || root.highlighted))
     width: root.cell
     y: root.cell + (root.full ? Tk.px(4) : Tk.px(2))
     text: root.modelData.name || ""
