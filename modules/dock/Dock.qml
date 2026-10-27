@@ -252,6 +252,10 @@ Item {
     height: icons.height + root.platePad * 2
     radius: Tk.rounding.large
     color: Colours.m3surfaceContainer
+    // The drawers' cards sit on a faint inner rim; the dock's plate needs the
+    // same line so it reads as a card inside the drawer, not a flat cutout.
+    border.width: 1
+    border.color: Qt.alpha(Colours.m3outlineVariant, 0.7)
   }
 
   // Nothing pinned and nothing running: one clear way into the launcher,
