@@ -96,6 +96,12 @@ QtObject {
   property string diskText: ""
   property real cpuTemp: 0
   property var _lastCpu: null
+  // Utilisation history for the hero cards, on the same rolling window as the
+  // network sparkline (one sample per resource tick, so 30 s; the GPU ticks on
+  // its own slower beat and gets a longer span from that).
+  readonly property int cpuHistoryLength: 30
+  property var cpuHistory: []
+  property var gpuHistory: []
 
   property FileView statFile: FileView { path: "/proc/stat"; printErrors: false }
   property FileView memFile: FileView { path: "/proc/meminfo"; printErrors: false }
@@ -184,6 +190,8 @@ QtObject {
         root.gpu = (parseFloat(p[2]) || 0) / 100; root.gpuTemp = parseFloat(p[3]) || 0
         root.gpuSleeping = p[4] === "1"
         root.gpuAbsent = p[0] === "none"
+        if (!root.gpuAbsent)
+          root.gpuHistory = root.gpuHistory.concat([root.gpu]).slice(-root.cpuHistoryLength)
       }
     }
   }
@@ -252,8 +260,11 @@ QtObject {
     interval: Config.o.services.resourceUpdateInterval; repeat: true; triggeredOnStart: true
     running: root.resourcesWanted > 0
     // A stale baseline would turn the whole time the dashboard was closed
-    // into one giant first sample.
-    onRunningChanged: if (!running) root._lastNet = null
+    // into one giant first sample (visible now in the hero cards' graphs).
+    onRunningChanged: if (!running) {
+      root._lastNet = null
+      root._lastCpu = null
+    }
     onTriggered: {
       root.statFile.reload()
       const m = String(root.statFile.text()).split("\n")[0].trim().split(/\s+/).slice(1).map(Number)
@@ -262,6 +273,7 @@ QtObject {
       if (root._lastCpu) {
         const dt = total - root._lastCpu.total, di = idle - root._lastCpu.idle
         root.cpu = dt > 0 ? Math.max(0, Math.min(1, 1 - di / dt)) : 0
+        root.cpuHistory = root.cpuHistory.concat([root.cpu]).slice(-root.cpuHistoryLength)
       }
       root._lastCpu = { total: total, idle: idle }
       root.memFile.reload()

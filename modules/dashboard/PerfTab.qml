@@ -48,6 +48,7 @@ Item {
           icon: "memory"; label: "CPU"
           subLabel: Sys.cpuName
           usage: Sys.cpu; temperature: Sys.cpuTemp
+          history: Sys.cpuHistory
           accent: Colours.m3primary
         }
         HeroCard {
@@ -56,6 +57,7 @@ Item {
           icon: "desktop_windows"; label: "GPU"
           subLabel: Sys.gpuName + (Sys.gpuSleeping ? " · sleeping" : "")
           usage: Sys.gpu; temperature: Sys.gpuTemp
+          history: Sys.gpuHistory
           accent: Colours.m3secondary
         }
       }
@@ -84,10 +86,16 @@ Item {
     property color accent
     property real usage
     property real temperature
+    // Rolling utilisation samples (Sys.cpuHistory / gpuHistory), drawn in the
+    // band between the icon plate and the temperature row.
+    property var history: []
     fill: Colours.m3surfaceContainer
     radius: Tk.rounding.extraLarge
     implicitWidth: Tk.px(400)
-    implicitHeight: Math.max(tempProg.height + detailsCol.implicitHeight + Tk.spacing.large, usageShape.height + usageLabel.implicitHeight) + Tk.padding.large * 2
+    // The graph needs a readable band of its own; without it the card is only
+    // as tall as the usage badge, which left that space empty.
+    readonly property int graphHeight: Tk.px(48)
+    implicitHeight: Math.max(tempProg.height + graphHeight + detailsCol.implicitHeight + Tk.spacing.large + Tk.spacing.medium * 2, usageShape.height + usageLabel.implicitHeight) + Tk.padding.large * 2
 
     CircularProgress {
       id: tempProg
@@ -138,6 +146,30 @@ Item {
       shape: hero.usage >= 0.8 ? "softBurst" : hero.usage >= 0.4 ? "sunny" : "cookie4"
       MText { id: usageLabel; anchors.bottom: parent.top; anchors.horizontalCenter: parent.horizontalCenter; text: "Usage"; color: Colours.m3onSurfaceVariant }
       MText { anchors.centerIn: parent; text: root.pct(hero.usage); color: hero.accent; font.pointSize: Tk.headline.small; weight: Font.Medium; axes: ({ "ROND": 25, "wdth": 50 }) }
+    }
+    // Caelestia's HeroCard leaves this band empty; the utilisation graph fills
+    // it with the same Sparkline the network card draws below.
+    Sparkline {
+      id: historyGraph
+      anchors.left: parent.left
+      anchors.right: usageShape.left
+      anchors.top: tempProg.bottom
+      anchors.bottom: detailsCol.top
+      anchors.leftMargin: Tk.padding.large
+      anchors.rightMargin: Tk.spacing.large
+      anchors.topMargin: Tk.spacing.medium
+      anchors.bottomMargin: Tk.spacing.medium
+      line1: hero.history
+      line1Color: hero.accent
+      historyLength: Sys.cpuHistoryLength
+      // 5 % of the scale, so an idle machine's noise doesn't fill the band.
+      maxFloor: 0.05
+    }
+    MText {
+      anchors.centerIn: historyGraph
+      text: "Collecting data..."
+      color: Colours.m3outline
+      visible: hero.history.length < 2
     }
   }
 

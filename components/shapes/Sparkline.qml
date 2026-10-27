@@ -14,14 +14,19 @@ Item {
   property real line2FillAlpha: 0.2
   property int historyLength: 30
   property real lineWidth: 2
-  property real maxValue: Math.max(1024, Math.max.apply(null, line1.concat(line2, [0])))
+  // The floor the scale never drops below: bytes for the network, a fraction
+  // of 100% for a utilisation graph.
+  property real maxFloor: 1024
+  property real maxValue: Math.max(maxFloor, Math.max.apply(null, line1.concat(line2, [0])))
   property real shownMax: maxValue
   Behavior on shownMax { Anim {} }
   // Caelestia NetworkCard: the graph slides one step left over each update
   // interval, linearly, so it scrolls continuously instead of jumping; the
-  // newest sample comes in from past the right edge.
+  // newest sample comes in from past the right edge. A single-line graph only
+  // moves line1.
   property int slideDuration: Config.o.services.resourceUpdateInterval
   property real slideProgress: 1
+  onLine1Changed: slideAnim.restart()
   onLine2Changed: slideAnim.restart()
   NumberAnimation { id: slideAnim; target: root; property: "slideProgress"; from: 0; to: 1; duration: root.slideDuration; easing.type: Easing.Linear }
   clip: true
