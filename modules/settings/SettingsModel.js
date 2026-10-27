@@ -554,7 +554,10 @@ var subpages = {
     title: "Dock",
     rows: [
       { type: "section", text: "General" },
-      { type: "toggle", key: "dock.enabled", label: "Enabled", subtext: "A drawer of the frame on the bottom edge, opened by hovering it" },
+      { type: "toggle", key: "dock.enabled", label: "Enabled", subtext: "A drawer of the frame on the bottom edge, opened by hovering it" },      { type: "select", key: "dock.size", label: "Size", subtext: "Compact is the icon pill; Full is a dashboard-sized drawer with names", options: [
+        { value: "compact", label: "Compact", icon: "view_week" },
+        { value: "full", label: "Full", icon: "view_module" }
+      ] },
       { type: "select", key: "dock.visibility", label: "Visibility", subtext: "Auto-hide is the edge's hover; always keeps it out and moves windows aside", options: [
         { value: "autohide", label: "Auto-hide", icon: "visibility_off" },
         { value: "always", label: "Always", icon: "visibility" }

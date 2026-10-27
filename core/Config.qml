@@ -423,6 +423,7 @@ QtObject {
       }
       property JsonObject dock: JsonObject {
         property bool enabled: false
+        property string size: "full"
         property string visibility: "autohide"
         property int hideDelay: 400
         property int iconSize: 48

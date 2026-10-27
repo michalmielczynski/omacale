@@ -838,7 +838,7 @@ Scope {
     readonly property real lx: ax + Math.round((aw - lw) / 2)
     readonly property real ly: ay + ah - lh + (lh + 5) * lS
     // Dock (centred on its edge, sliding out of it)
-    readonly property real dockW: dockLoader.item ? dockLoader.item.implicitWidth : 0
+    readonly property real dockW: dockLoader.item ? Math.min(dockLoader.item.implicitWidth, aw - Tk.padding.large * 2) : 0
     readonly property real dockH: dockLoader.item ? dockLoader.item.implicitHeight : 0
     readonly property real dockX: ax + Math.round((aw - dockW) / 2)
     readonly property real dockY: scope.dockEdge === "top"

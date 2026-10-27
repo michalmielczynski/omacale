@@ -13,6 +13,7 @@ Item {
   // icon alive across rebuilds of its list.
   property var modelData: ({ windows: [], active: false, icon: "", name: "" })
   property real cell: Tk.px(48)
+  property bool full: false
   property string edge: "bottom"
   property bool menuShown: false
   property bool highlighted: false
@@ -38,7 +39,7 @@ Item {
   readonly property int dots: Math.min(3, modelData.windows.length)
 
   implicitWidth: cell
-  implicitHeight: cell
+  implicitHeight: full ? cell + Tk.px(20) : cell
 
   Rectangle {
     id: bg
@@ -87,12 +88,13 @@ Item {
   // The cell's edge side holds the window dots (dotRoom), so the icon is
   // centred in what is left and the two never touch.
   readonly property real dotRoom: Tk.px(9)
-  readonly property real iconSize: Math.round(Math.min(root.cell * 0.78, root.cell - dotRoom * 2 + Tk.px(6)))
+  readonly property real iconSize: Math.round(Math.min(root.cell * (root.full ? 0.66 : 0.78), root.cell - dotRoom * 2 + Tk.px(6)))
   IconImage {
     implicitSize: root.iconSize
     readonly property real away: (root.dotRoom - (root.cell - root.iconSize) / 2) > 0 ? root.dotRoom - (root.cell - root.iconSize) / 2 : 0
     x: Math.round((root.width - width) / 2 + (root.edge === "left" ? away : root.edge === "right" ? -away : 0))
-    y: Math.round((root.height - height) / 2 + (root.edge === "top" ? away : root.edge === "bottom" ? -away : 0))
+    y: root.full ? Math.round((root.cell - height) / 2)
+      : Math.round((root.height - height) / 2 + (root.edge === "top" ? away : root.edge === "bottom" ? -away : 0))
     asynchronous: true
     source: root.modelData.icon
   }
@@ -103,7 +105,8 @@ Item {
     columns: vert ? 1 : 3
     spacing: Tk.px(3)
     x: root.edge === "left" ? Tk.px(2) : root.edge === "right" ? root.width - width - Tk.px(2) : Math.round((root.width - width) / 2)
-    y: root.edge === "top" ? Tk.px(2) : root.edge === "bottom" ? root.height - height - Tk.px(2) : Math.round((root.height - height) / 2)
+    y: root.full ? (root.edge === "top" ? Tk.px(3) : root.cell - height - Tk.px(3))
+      : root.edge === "top" ? Tk.px(2) : root.edge === "bottom" ? root.height - height - Tk.px(2) : Math.round((root.height - height) / 2)
     Repeater {
       model: root.dots
       Rectangle {
@@ -122,7 +125,7 @@ Item {
   Rectangle {
     id: nameLabel
     enabled: false
-    visible: (stateLayer.containsMouse || root.highlighted) && Config.o.dock.labels
+    visible: !root.full && (stateLayer.containsMouse || root.highlighted) && Config.o.dock.labels
       && !root.menuShown && !root.previewOpen
     opacity: visible ? 1 : 0
     Behavior on opacity { Anim { type: "fastEffects" } }
@@ -140,5 +143,19 @@ Item {
       font.pointSize: Tk.label.large
       color: Colours.m3onSurface
     }
+  }
+
+  // Full size: the name is part of the cell, under the icon, like a launcher
+  // tile. Compact keeps the name as a pill on hover.
+  MText {
+    id: fullName
+    visible: root.full
+    width: root.cell
+    y: root.cell + Tk.px(2)
+    text: root.modelData.name || ""
+    horizontalAlignment: Text.AlignHCenter
+    elide: Text.ElideRight
+    font.pointSize: Tk.label.small
+    color: root.highlighted ? Colours.m3onSurface : Colours.m3onSurfaceVariant
   }
 }

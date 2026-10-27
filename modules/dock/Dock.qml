@@ -23,13 +23,19 @@ Item {
   signal menuChanged(bool open)
   signal launcherRequested
   readonly property bool vertical: edge === "left" || edge === "right"
-  readonly property real cell: Tk.px(Config.o.dock.iconSize)
+  // Compact is the original pill; full is a dashboard-sized drawer: a header,
+  // names under the icons, and room for the apps to breathe.
+  readonly property bool full: Config.o.dock.size === "full"
+  readonly property real cell: Tk.px(full ? Math.round(Config.o.dock.iconSize * 1.5) : Config.o.dock.iconSize)
   // The icons sit on a plate of their own inside the drawer: with a theme
   // whose surface is the windows' colour (a black one) the drawer alone
   // doesn't show where the dock is. The window dots live in its margin.
   readonly property real platePad: Tk.padding.small
-  readonly property real pad: Tk.padding.small + platePad
-  readonly property real gap: Tk.spacing.small
+  readonly property real pad: full ? Tk.padding.medium : Tk.padding.small + platePad
+  readonly property real gap: full ? Tk.spacing.medium : Tk.spacing.small
+  readonly property real headerH: full ? Tk.px(32) : 0
+  readonly property real headerGap: full ? Tk.spacing.small : 0
+  readonly property real fullWidth: Tk.px(854)
 
   // The app whose menu is open (its key), "" for none.
   property string menuKey: ""
@@ -43,6 +49,10 @@ Item {
   function closeMenu() { menuKey = ""; previewKey = "" }
 
   readonly property bool empty: root.entries.length === 0
+  readonly property string hoveredName: {
+    const e = root.entries[root.hoveredIndex]
+    return e && e.kind === "app" ? e.app.name : ""
+  }
   // The pointer is anywhere on the dock (icons, menu, previews).
   readonly property bool pointerOn: dockHover.hovered
   // Set by the cell under the pointer; independent of the grid's hover.
@@ -220,7 +230,8 @@ Item {
 
   // Its breadth with neither panel open: what an always-out dock reserves,
   // so opening the menu or the previews doesn't move the windows.
-  readonly property real restBreadth: (empty ? cell : (vertical ? iconsW : iconsH)) + pad * 2
+  readonly property real restBreadth: (full ? headerH + headerGap : 0)
+    + (empty ? cell : (vertical ? iconsW : iconsH)) + pad * 2
   // How far the drawer has grown towards holding the panel (0..1): the panel
   // fades in with it, so it never shows before there is room for it.
   readonly property real grown: {
@@ -229,8 +240,74 @@ Item {
     return full > 0 ? Math.max(0, Math.min(1, now / full)) * Math.max(0, Math.min(1, now / full)) : 1
   }
 
-  implicitWidth: empty ? cell + pad * 2 : (vertical ? iconsW + menuGap + menuW : Math.max(iconsW, menuW)) + pad * 2
-  implicitHeight: empty ? cell + pad * 2 : (vertical ? Math.max(iconsH, menuH) : iconsH + menuGap + menuH) + pad * 2
+  implicitWidth: full
+    ? Math.max(fullWidth, (empty ? cell : iconsW) + pad * 2, menuW + pad * 2)
+    : empty ? cell + pad * 2 : (vertical ? iconsW + menuGap + menuW : Math.max(iconsW, menuW)) + pad * 2
+  implicitHeight: (full ? headerH + headerGap : 0)
+    + (empty ? cell + pad * 2 : (vertical ? Math.max(iconsH, menuH) : iconsH + menuGap + menuH) + pad * 2)
+
+  // Full size: a header like the other drawers, and the one obvious way to
+  // the launcher when what is pinned is not what you want.
+  Item {
+    id: header
+    visible: root.full
+    x: root.pad
+    y: root.pad
+    width: root.width - root.pad * 2
+    height: root.headerH
+    z: 2
+
+    Column {
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: 0
+      MText {
+        text: "Dock"
+        font.pointSize: Tk.title.medium
+        weight: Font.Medium
+        color: Colours.m3onSurface
+      }
+      MText {
+        text: root.hoveredName || "Pinned and running apps"
+        font.pointSize: Tk.label.small
+        color: Colours.m3outline
+        elide: Text.ElideRight
+        width: root.width - allApps.width - Tk.spacing.extraLarge
+      }
+    }
+
+    Rectangle {
+      id: allApps
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      width: allRow.width + Tk.padding.large * 2
+      height: Tk.px(28)
+      radius: Tk.rounding.full
+      color: Colours.m3surfaceContainerHigh
+      Row {
+        id: allRow
+        anchors.centerIn: parent
+        spacing: Tk.spacing.small
+        MIcon {
+          anchors.verticalCenter: parent.verticalCenter
+          text: "apps"
+          size: Tk.iconSize.small
+          color: Colours.m3onSurface
+        }
+        MText {
+          anchors.verticalCenter: parent.verticalCenter
+          text: "All apps"
+          font.pointSize: Tk.label.large
+          color: Colours.m3onSurface
+        }
+      }
+      StateLayer {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.launcherRequested()
+      }
+    }
+  }
 
   Rectangle {
     x: icons.x - root.platePad
@@ -245,7 +322,9 @@ Item {
   // so the edge's hover isn't a dead strip.
   Item {
     visible: root.empty
-    anchors.centerIn: parent
+    anchors.horizontalCenter: parent.horizontalCenter
+    y: root.full ? root.headerH + root.headerGap + Math.round((root.height - root.headerH - root.headerGap - root.cell) / 2)
+      : Math.round((root.height - root.cell) / 2)
     width: root.cell
     height: root.cell
     MIcon {
@@ -272,7 +351,8 @@ Item {
     // placing them from the panel's final size made them jump out of the
     // still-small drawer and back).
     x: root.vertical ? (root.edge === "left" ? root.pad : root.width - root.pad - width) : Math.round((root.width - width) / 2)
-    y: root.vertical ? Math.round((root.height - height) / 2) : (root.edge === "top" ? root.pad : root.height - root.pad - height)
+    y: root.vertical ? Math.round((root.height - height) / 2)
+      : (root.edge === "top" ? root.pad + (root.full ? root.headerH + root.headerGap : 0) : root.height - root.pad - height)
 
     Repeater {
       model: root.slotKeys
@@ -291,6 +371,7 @@ Item {
           DockItem {
             modelData: slot.entry.app
             cell: root.cell
+            full: root.full
             edge: root.edge
             mag: root.scales[slot.index] || 1
             menuShown: root.menuKey === modelData.key
@@ -316,7 +397,7 @@ Item {
     id: divider
     Item {
       implicitWidth: root.vertical ? root.cell : Tk.px(1) + root.gap
-      implicitHeight: root.vertical ? Tk.px(1) + root.gap : root.cell
+      implicitHeight: root.vertical ? Tk.px(1) + root.gap : (root.full ? root.cell + Tk.px(20) : root.cell)
       Rectangle {
         anchors.centerIn: parent
         width: root.vertical ? root.cell * 0.6 : 1

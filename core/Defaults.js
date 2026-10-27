@@ -120,6 +120,7 @@ var values = {
   // all running windows, only this monitor's or only this workspace's.
   dock: {
     enabled: false,
+    size: "full",            // compact (the pill) | full (a drawer with names)
     visibility: "autohide",  // autohide | always
     hideDelay: 400,          // ms after the pointer leaves it
     iconSize: 48,
