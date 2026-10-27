@@ -245,17 +245,17 @@ Item {
   implicitHeight: empty ? cell + pad * 2
     : (vertical ? Math.max(iconsH, menuH) : iconsH + menuGap + menuH) + pad * 2
 
-  Rectangle {
+  // The same card the other drawers use: Contents/Dashboard/Utilities all
+  // put their content on a GlassCard. With glass cards on it is nested glass
+  // of its own (GlassCard bends the drawer's glass at its rim); off, it is the
+  // plain surfaceContainer rectangle. No hand-drawn outline.
+  GlassCard {
     x: icons.x - root.platePad
     y: icons.y - root.platePad
     width: icons.width + (allAppsTile.visible ? root.gap + allAppsTile.width : 0) + root.platePad * 2
     height: icons.height + root.platePad * 2
     radius: Tk.rounding.large
-    color: Colours.m3surfaceContainer
-    // The drawers' cards sit on a faint inner rim; the dock's plate needs the
-    // same line so it reads as a card inside the drawer, not a flat cutout.
-    border.width: 1
-    border.color: Qt.alpha(Colours.m3outlineVariant, 0.7)
+    fill: Colours.m3surfaceContainer
   }
 
   // Nothing pinned and nothing running: one clear way into the launcher,
