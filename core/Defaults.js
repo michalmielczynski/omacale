@@ -130,7 +130,10 @@ var values = {
     scope: "all",            // all | monitor | workspace
     magnify: 1.0,            // 1 is off; 1.25 is a gentle macOS lean
     names: "off",            // off | hover (a name on hover) | always (under the icons)
-    previews: true           // live window cards after a rest on an open app
+    previews: true,          // live window cards after a rest on an open app
+    badges: true,            // the app's unread count over its icon, cleared on focus
+    progress: true,          // a bar along the edge, from the app's Unity LauncherEntry
+    urgent: true             // the icon wiggles when a window asks for attention
   },
   // Liquid motion (Settings › Motion): springs, necks and drops on
   // top of Caelestia's drawers. Off, Omacale moves exactly as

@@ -109,6 +109,18 @@ Item {
     }
     return out
   }
+  // A focused app has no unread badge and is no longer urgent: the badge is a
+  // count "since the app was last in front", so the focus is the reset.
+  function syncFocus() {
+    const items = root.scoped, active = []
+    for (let i = 0; i < items.length; i++) {
+      if (!items[i].active) continue
+      active.push(items[i].key)
+      DockState.clearUrgent(items[i].key)
+    }
+    DockState.setActive(active)
+  }
+  onScopedChanged: root.syncFocus()
   // Pinned apps, a divider (when both kinds are there), the rest.
   readonly property var entries: {
     const all = root.scoped, out = []
@@ -152,11 +164,28 @@ Item {
     return out
   }
   readonly property var scales: {
+    if (magnify <= 1 || lastPos < 0) return entries.map(() => 1)
     const range = cell * 2.5
+    const bell = x => {
+      const d = Math.abs(x - lastPos)
+      return d < range ? (Math.cos(Math.PI * d / range) + 1) / 2 : 0
+    }
+    // macOS doesn't read the bell at the icon's centre: it integrates the
+    // field across the icon's own width, so an icon grows by the *average*
+    // over its span. One sample per icon makes the row's shoulders step from
+    // neighbour to neighbour; the average keeps the widths continuous, which
+    // is what makes the wave read as one surface. Divided by the average under
+    // the pointer, so that icon still reaches exactly `magnify`.
+    const span = cell, steps = 8
+    const average = c => {
+      let sum = 0
+      for (let k = 0; k < steps; k++) sum += bell(c - span / 2 + (k + 0.5) * span / steps)
+      return sum / steps
+    }
+    const peak = average(lastPos)
     return entries.map((e, i) => {
-      if (e.kind !== "app" || magnify <= 1 || lastPos < 0) return 1
-      const d = Math.abs(lastPos - centres[i])
-      return 1 + (magnify - 1) * magOn * (d < range ? (Math.cos(Math.PI * d / range) + 1) / 2 : 0)
+      if (e.kind !== "app" || peak <= 0) return 1
+      return 1 + (magnify - 1) * root.magOn * Math.min(1, average(centres[i]) / peak)
     })
   }
   readonly property var shifts: {
@@ -218,7 +247,7 @@ Item {
     dragOffset = 0
   }
   onEntriesChanged: syncKeys()
-  Component.onCompleted: syncKeys()
+  Component.onCompleted: { syncKeys(); root.syncFocus() }
 
   readonly property real iconsW: icons.implicitWidth
   readonly property real iconsH: icons.implicitHeight
@@ -317,6 +346,9 @@ Item {
             names: root.names
             edge: root.edge
             mag: root.scales[slot.index] || 1
+            badge: DockState.badgeFor(modelData.key)
+            progress: DockState.progressFor(modelData.key)
+            urgent: DockState.urgentFor(modelData.key)
             menuShown: root.menuKey === modelData.key
             highlighted: root.hoveredKey === modelData.key
             previewOpen: root.previewOpen

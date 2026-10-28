@@ -21,6 +21,11 @@ Item {
   property bool previewOpen: false
   // The dock's magnification of this icon; it grows away from the edge.
   property real mag: 1
+  // What the app says about itself (DockState): unread count, progress 0..1
+  // (-1 is off), and a window asking for attention.
+  property int badge: 0
+  property real progress: -1
+  property bool urgent: false
 
   signal menuRequested
   signal dismissRequested
@@ -115,6 +120,7 @@ Item {
   readonly property real dotRoom: Tk.px(9)
   readonly property real iconSize: Math.round(Math.min(root.cell * (root.full ? 0.66 : 0.78), root.cell - dotRoom * 2 + Tk.px(6)))
   IconImage {
+    id: iconImg
     implicitSize: root.iconSize
     readonly property real away: (root.dotRoom - (root.cell - root.iconSize) / 2) > 0 ? root.dotRoom - (root.cell - root.iconSize) / 2 : 0
     x: Math.round((root.width - width) / 2 + (root.edge === "left" ? away : root.edge === "right" ? -away : 0))
@@ -124,6 +130,21 @@ Item {
     source: root.modelData.icon
     opacity: pressArea.pressed ? 0.82 : 1
     Behavior on opacity { Anim { type: "fastEffects" } }
+  }
+
+  // Urgent: the icon shakes its head three times and settles -- dash-to-dock's
+  // wiggle, macOS's bounce and Windows' flash in one gesture, and the only one
+  // of the three that doesn't need the window to move.
+  SequentialAnimation {
+    id: wiggle
+    loops: 3
+    NumberAnimation { target: iconImg; property: "rotation"; to: 7; duration: 70; easing.type: Easing.OutQuad }
+    NumberAnimation { target: iconImg; property: "rotation"; to: -7; duration: 110; easing.type: Easing.InOutQuad }
+    NumberAnimation { target: iconImg; property: "rotation"; to: 0; duration: 90; easing.type: Easing.OutQuad }
+  }
+  onUrgentChanged: {
+    if (root.urgent) wiggle.restart()
+    else { wiggle.stop(); iconImg.rotation = 0 }
   }
 
   // The window dots, on the edge side of the cell.
@@ -144,6 +165,63 @@ Item {
         Behavior on width { Anim { type: "fastSpatial" } }
         Behavior on height { Anim { type: "fastSpatial" } }
       }
+    }
+  }
+
+  // ---------------------------------------------------------- state marks
+  // macOS's badge: a pill over the icon's top corner, one per app rather than
+  // one per window, outside the dots. It does not grow with the icon -- a
+  // count that swells under the pointer would be a second animation.
+  readonly property real badgeH: Tk.px(15)
+  Rectangle {
+    id: badgePill
+    visible: root.badge > 0
+    z: 4
+    height: root.badgeH
+    width: Math.max(root.badgeH, badgeLabel.implicitWidth + Tk.px(7))
+    radius: height / 2
+    color: Colours.m3error
+    x: Math.round(root.width - width + Tk.px(3))
+    y: Tk.px(1)
+    MText {
+      id: badgeLabel
+      anchors.centerIn: parent
+      text: root.badge > 99 ? "99+" : String(root.badge)
+      font.pointSize: Tk.label.small
+      color: Colours.m3onError
+    }
+  }
+
+  // Progress on the far side of the cell, away from the edge where the dots
+  // live: the one strip that is always empty, and the same underline Windows
+  // puts under a busy button. -1 is "nothing to say".
+  readonly property real progressP: Math.max(0, Math.min(1, root.progress))
+  Item {
+    id: progressBar
+    visible: root.progress >= 0
+    z: 3
+    width: root.vert ? Tk.px(3) : Math.round(root.cell * 0.62)
+    height: root.vert ? Math.round(root.cell * 0.62) : Tk.px(3)
+    // Away from the dock's edge, where the window dots are: the bar would
+    // otherwise sit on top of them and the two marks would read as one.
+    x: root.vert
+      ? (root.edge === "left" ? root.width - width - Tk.px(1) : Tk.px(1))
+      : Math.round((root.width - width) / 2)
+    y: root.vert
+      ? Math.round((root.height - height) / 2)
+      : (root.edge === "top" ? root.cell - height - Tk.px(1) : Tk.px(1))
+    Rectangle {
+      anchors.fill: parent
+      radius: height / 2
+      color: Colours.m3outlineVariant
+    }
+    Rectangle {
+      radius: height / 2
+      color: Colours.m3primary
+      width: root.vert ? parent.width : Math.max(root.progressP > 0 ? progressBar.height : 0, parent.width * root.progressP)
+      height: root.vert ? Math.max(root.progressP > 0 ? progressBar.width : 0, parent.height * root.progressP) : parent.height
+      Behavior on width { Anim { type: "fastSpatial" } }
+      Behavior on height { Anim { type: "fastSpatial" } }
     }
   }
 

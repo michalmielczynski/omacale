@@ -577,7 +577,10 @@ var subpages = {
         { value: "always", label: "Always", icon: "label" }
       ] },
       { type: "toggle", key: "dock.previews", label: "Live previews", subtext: "After resting on an open app, its windows as live cards" },
-      { type: "slider", key: "dock.magnify", label: "Magnification", icon: "zoom_in", from: 1, to: 1.3, step: 0.01, unit: "x", subtext: "1 is off; the icons lean towards the pointer" },
+      { type: "toggle", key: "dock.badges", label: "Badges", subtext: "The app's unread notifications over its icon; cleared when the app is focused" },
+      { type: "toggle", key: "dock.progress", label: "Progress", subtext: "A bar along the edge for apps that publish a progress (Thunderbird, Telegram, Electron apps)" },
+      { type: "toggle", key: "dock.urgent", label: "Urgent wiggle", subtext: "The icon shakes when a window asks for attention" },
+      { type: "slider", key: "dock.magnify", label: "Magnification", icon: "zoom_in", from: 1, to: 1.5, step: 0.01, unit: "x", subtext: "1 is off; the icons lean towards the pointer" },
       { type: "section", text: "Pinned" },
       { type: "custom", comp: "dockPins" }
     ]

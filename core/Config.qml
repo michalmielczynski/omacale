@@ -434,6 +434,9 @@ QtObject {
         property real magnify: 1.0
         property string names: "off"
         property bool previews: true
+        property bool badges: true
+        property bool progress: true
+        property bool urgent: true
       }
       property JsonObject liquid: JsonObject {
         property bool enabled: false

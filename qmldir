@@ -13,6 +13,7 @@ singleton AppService 1.0 services/AppService.qml
 singleton Colours 1.0 core/Colours.qml
 singleton Config 1.0 core/Config.qml
 singleton DockService 1.0 services/DockService.qml
+singleton DockState 1.0 services/DockState.qml
 singleton Liquid 1.0 core/Liquid.qml
 singleton Morph 1.0 core/Morph.qml
 singleton Glass 1.0 core/Glass.qml
