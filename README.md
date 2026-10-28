@@ -57,6 +57,9 @@ The dock is not another panel on top of Omacale: it is a drawer of the same fram
 - **Names**: **Off** (default; clean icons), **On hover** (a name only under the pointer) or **Always** (under every icon). Compact keeps the hover pill.
 - **Content**: pinned apps, then running apps; each pinned app owns the windows launched from it, including TUI windows in a pinned terminal. Window dots show active and open windows; right-click gives Pin/Unpin, New window, Move windows here and Close; pins can be dragged to reorder.
 - **Previews**: resting on an open app shows its windows as live cards (Settings › Panels › Dock › Live previews).
+- **Badges**: the app's unread notifications over the icon's corner, counted since it was last in front; an app that publishes its own count over Unity's launcher API wins. Settings › Panels › Dock › Badges.
+- **Progress**: a thin bar on the far side of the tile for apps that publish one (Thunderbird, Telegram, the Electron family), read from the same Unity API. Settings › Panels › Dock › Progress.
+- **Urgent**: the icon shakes three times when a window asks for attention — Hyprland's `urgent` event, a critical notification, or the app's own Unity flag. Settings › Panels › Dock › Urgent wiggle.
 - **Always out**: reserves its breadth, so windows make room; auto-hide doesn't.
 - **Limitations**: the dock is horizontal (bottom, or top with a bottom bar); side docks aren't implemented. It is a fork addition, not upstream Omacale.
 
