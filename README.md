@@ -55,7 +55,8 @@ The dock is not another panel on top of Omacale: it is a drawer of the same fram
 - **Open**: hover the dock's edge; it closes after **Settings › Panels › Dock › Hide delay** (default 400 ms) once the pointer leaves. It also closes on focus changes and after an app is activated.
 - **Size**: **Compact** is the icon pill; **Full** is the wide drawer with room for names and an `All apps` tile. Both live in Settings › Panels › Dock › Size.
 - **Names**: **Off** (default; clean icons), **On hover** (a name only under the pointer) or **Always** (under every icon). Compact keeps the hover pill.
-- **Content**: pinned apps, then running apps; each pinned app owns the windows launched from it, including TUI windows in a pinned terminal. Window dots show active and open windows; right-click gives Pin/Unpin, New window, Move windows here and Close; pins can be dragged to reorder.
+- **Content**: pinned apps, then running apps, each on its own glass card — the gap between the cards is the split, so there is no divider line — and the launcher tile on a card of its own. Each pinned app owns the windows launched from it, including TUI windows in a pinned terminal. Window dots show active and open windows; right-click gives Pin/Unpin, New window, Move windows here and Close; pins can be dragged to reorder.
+- **Icon row**: the full drawer keeps the icon at its configured size in a tighter cell and gap, so the row reads like a dock rather than a row of cards.
 - **Previews**: resting on an open app shows its windows as live cards (Settings › Panels › Dock › Live previews).
 - **Always out**: reserves its breadth, so windows make room; auto-hide doesn't.
 - **Limitations**: the dock is horizontal (bottom, or top with a bottom bar); side docks aren't implemented. It is a fork addition, not upstream Omacale.

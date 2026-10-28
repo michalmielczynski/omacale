@@ -113,7 +113,7 @@ Item {
   // The cell's edge side holds the window dots (dotRoom), so the icon is
   // centred in what is left and the two never touch.
   readonly property real dotRoom: Tk.px(9)
-  readonly property real iconSize: Math.round(Math.min(root.cell * (root.full ? 0.66 : 0.78), root.cell - dotRoom * 2 + Tk.px(6)))
+  readonly property real iconSize: Math.round(Math.min(root.cell * (root.full ? 0.8 : 0.78), root.cell - dotRoom * 2 + Tk.px(6)))
   IconImage {
     implicitSize: root.iconSize
     readonly property real away: (root.dotRoom - (root.cell - root.iconSize) / 2) > 0 ? root.dotRoom - (root.cell - root.iconSize) / 2 : 0

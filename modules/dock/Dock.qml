@@ -1,7 +1,7 @@
 import QtQuick
 import "../.."
 
-// The dock's content: the pinned apps, a divider, then the open apps that
+// The dock's content: the pinned apps, a gap, then the open apps that
 // aren't pinned (DockService.items), in a row on the top or bottom edge or a
 // column on the left or right one. A right click opens the app's menu inside
 // the dock, on the side away from the edge, so the drawer grows to hold it.
@@ -28,13 +28,22 @@ Item {
   // under the icons and room for the apps to breathe.
   readonly property bool full: Config.o.dock.size === "full"
   readonly property string names: Config.o.dock.names || "off"
-  readonly property real cell: Tk.px(full ? Math.round(Config.o.dock.iconSize * 1.5) : Config.o.dock.iconSize)
+  // The cell is the icon plus its air: the icon fills `iconSize` in full (and
+  // 78% of it in compact), so a smaller cell with a bigger share drawn is what
+  // makes the row read tighter without shrinking the icons.
+  readonly property real cell: Tk.px(full ? Config.o.dock.iconSize + 16 : Config.o.dock.iconSize)
   // The icons sit on a plate of their own inside the drawer: with a theme
   // whose surface is the windows' colour (a black one) the drawer alone
   // doesn't show where the dock is. The window dots live in its margin.
   readonly property real platePad: Tk.padding.small
   readonly property real pad: full ? Tk.padding.largeIncreased : Tk.padding.small + platePad
-  readonly property real gap: full ? Tk.spacing.medium : Tk.spacing.small
+  readonly property real gap: full ? Tk.spacing.small : Tk.spacing.extraSmall
+  // Pinned and running apps are two cards of their own now, with the same gap
+  // between them as between the cards of every other drawer. The spacer that
+  // stands where the divider used to is sized so the two plates keep exactly
+  // that gap (the row's own spacing sits on both of its sides).
+  readonly property real cardGap: Tk.spacing.medium
+  readonly property real sectionSpace: Math.max(0, cardGap + platePad * 2 - gap * 2)
   readonly property real fullMinWidth: Tk.px(560)
 
   // The app whose menu is open (its key), "" for none.
@@ -109,15 +118,35 @@ Item {
     }
     return out
   }
-  // Pinned apps, a divider (when both kinds are there), the rest.
+  // Pinned apps, a spacer (when both kinds are there), the rest. The spacer
+  // draws nothing: the two cards behind the row say where the sections split.
   readonly property var entries: {
     const all = root.scoped, out = []
     const pins = all.filter(i => i.pinned), rest = all.filter(i => !i.pinned)
     for (const p of pins) out.push({ kind: "app", app: p })
-    if (pins.length && rest.length) out.push({ kind: "divider" })
+    if (pins.length && rest.length) out.push({ kind: "gap" })
     for (const r of rest) out.push({ kind: "app", app: r })
     return out
   }
+  readonly property int pinCount: root.scoped.filter(i => i.pinned).length
+  readonly property bool split: root.pinCount > 0 && root.pinCount < root.entries.length
+  readonly property int runsStart: root.pinCount + (root.split ? 1 : 0)
+  // Where a card goes: the icons of a range including the wave, so the plate
+  // follows the magnification instead of the icons sliding out of it.
+  function boundsOf(from, to) {
+    if (from < 0 || to < from || to >= root.entries.length) return null
+    let lo = 1e9, hi = -1e9
+    for (let i = from; i <= to; i++) {
+      const half = root.sizeOf(root.entries[i]) / 2
+      const c = root.centres[i] + (root.shifts[i] || 0)
+      lo = Math.min(lo, c - half)
+      hi = Math.max(hi, c + half)
+    }
+    return { x: lo - root.platePad, w: hi - lo + root.platePad * 2 }
+  }
+  readonly property var pinBounds: boundsOf(0, pinCount - 1)
+  readonly property var runBounds: split ? boundsOf(runsStart, entries.length - 1) : null
+  readonly property var wholeBounds: split ? null : boundsOf(0, entries.length - 1)
 
   // ------------------------------------------------------------ magnify
   // Each icon grows with the pointer's nearness along the dock (a cosine
@@ -144,7 +173,7 @@ Item {
   property real lastPos: -1
   onHoverPosChanged: if (hoverPos >= 0) lastPos = hoverPos
   // Resting centres along the dock, and sizes, of each entry.
-  function sizeOf(e) { return e.kind === "divider" ? Tk.px(1) + gap : cell }
+  function sizeOf(e) { return e.kind === "gap" ? sectionSpace : cell }
   readonly property var centres: {
     const out = []
     let p = 0
@@ -206,11 +235,11 @@ Item {
   property var slotKeys: []
   readonly property var entryByKey: {
     const m = {}
-    for (const e of entries) m[e.kind === "divider" ? "|divider" : e.app.key] = e
+    for (const e of entries) m[e.kind === "gap" ? "|gap" : e.app.key] = e
     return m
   }
   function syncKeys() {
-    const k = entries.map(e => e.kind === "divider" ? "|divider" : e.app.key)
+    const k = entries.map(e => e.kind === "gap" ? "|gap" : e.app.key)
     if (k.join("\n") === slotKeys.join("\n")) return
     slotKeys = k
     // The icons were rebuilt: a drag in progress has lost its icon.
@@ -239,8 +268,13 @@ Item {
     return full > 0 ? Math.max(0, Math.min(1, now / full)) * Math.max(0, Math.min(1, now / full)) : 1
   }
 
+  // From the left plate's rim to the right one's: the icons, both pads of a
+  // plate, and -- when it is out -- the card gap and the apps tile with its
+  // own pads.
+  readonly property real contentW: empty ? cell
+    : iconsW + platePad * 2 + (allAppsTile.visible ? cardGap + allAppsTile.width + platePad * 2 : 0)
   implicitWidth: full
-    ? Math.max(fullMinWidth, (empty ? cell : iconsW + gap + cell) + pad * 2, menuW + pad * 2)
+    ? Math.max(fullMinWidth, (empty ? cell : contentW) + pad * 2, menuW + pad * 2)
     : empty ? cell + pad * 2 : (vertical ? iconsW + menuGap + menuW : Math.max(iconsW, menuW)) + pad * 2
   implicitHeight: empty ? cell + pad * 2
     : (vertical ? Math.max(iconsH, menuH) : iconsH + menuGap + menuH) + pad * 2
@@ -249,10 +283,44 @@ Item {
   // put their content on a GlassCard. With glass cards on it is nested glass
   // of its own (GlassCard bends the drawer's glass at its rim); off, it is the
   // plain surfaceContainer rectangle. No hand-drawn outline.
+  //
+  // Pinned and running apps are two cards now: the split is the gap between
+  // them, so the old divider line has nothing left to say. With only one of
+  // the two sections present there is one card, as before.
   GlassCard {
-    x: icons.x - root.platePad
+    visible: !root.empty && root.split
+    x: icons.x + (root.pinBounds ? root.pinBounds.x : 0)
     y: icons.y - root.platePad
-    width: icons.width + (allAppsTile.visible ? root.gap + allAppsTile.width : 0) + root.platePad * 2
+    width: root.pinBounds ? root.pinBounds.w : 0
+    height: icons.height + root.platePad * 2
+    radius: Tk.rounding.large
+    fill: Colours.m3surfaceContainer
+  }
+  GlassCard {
+    visible: !root.empty && root.split
+    x: icons.x + (root.runBounds ? root.runBounds.x : 0)
+    y: icons.y - root.platePad
+    width: root.runBounds ? root.runBounds.w : 0
+    height: icons.height + root.platePad * 2
+    radius: Tk.rounding.large
+    fill: Colours.m3surfaceContainer
+  }
+  GlassCard {
+    visible: !root.empty && !root.split
+    x: icons.x + (root.wholeBounds ? root.wholeBounds.x : -root.platePad)
+    y: icons.y - root.platePad
+    width: root.wholeBounds ? root.wholeBounds.w : 0
+    height: icons.height + root.platePad * 2
+    radius: Tk.rounding.large
+    fill: Colours.m3surfaceContainer
+  }
+  // The launcher tile is a card of its own too: it is not an app, and inside
+  // the running plate it would read as one.
+  GlassCard {
+    visible: allAppsTile.visible
+    x: allAppsTile.x - root.platePad
+    y: icons.y - root.platePad
+    width: allAppsTile.width + root.platePad * 2
     height: icons.height + root.platePad * 2
     radius: Tk.rounding.large
     fill: Colours.m3surfaceContainer
@@ -291,8 +359,8 @@ Item {
     // grows away from it for the menu or the previews (its size animates;
     // placing them from the panel's final size made them jump out of the
     // still-small drawer and back).
-    readonly property real rowW: width + (allAppsTile.visible ? root.gap + allAppsTile.width : 0)
-    x: root.vertical ? (root.edge === "left" ? root.pad : root.width - root.pad - width) : Math.round((root.width - rowW) / 2)
+    x: root.vertical ? (root.edge === "left" ? root.pad : root.width - root.pad - width)
+      : Math.round((root.width - root.contentW) / 2 + root.platePad)
     y: root.vertical ? Math.round((root.height - height) / 2)
       : (root.edge === "top" ? root.pad : root.height - root.pad - height)
 
@@ -302,12 +370,12 @@ Item {
         id: slot
         required property string modelData
         required property int index
-        readonly property var entry: root.entryByKey[modelData] || { kind: "divider" }
+        readonly property var entry: root.entryByKey[modelData] || { kind: "gap" }
         readonly property bool dragged: entry.kind === "app" && root.dragKey === modelData
         readonly property real shift: (root.shifts[index] || 0) + (dragged ? root.dragOffset : 0)
         z: dragged ? 1 : 0
         transform: Translate { x: root.vertical ? 0 : slot.shift; y: root.vertical ? slot.shift : 0 }
-        sourceComponent: entry.kind === "divider" ? divider : appCell
+        sourceComponent: entry.kind === "gap" ? gapSpacer : appCell
         Component {
           id: appCell
           DockItem {
@@ -337,20 +405,12 @@ Item {
   }
 
   // The one app-adjacent way to the launcher. It sits after the icons as a
-  // tile of its own, so the full drawer needs no header row.
-  Rectangle {
-    id: allAppsSep
-    visible: allAppsTile.visible
-    x: allAppsTile.x - Math.ceil(root.gap / 2)
-    y: allAppsTile.y + Math.round((root.cell - Tk.px(34)) / 2)
-    width: 1
-    height: Tk.px(34)
-    color: Colours.m3outlineVariant
-  }
+  // tile of its own, so the full drawer needs no header row, and on a card of
+  // its own -- the separator line it used to have is that card's gap now.
   Item {
     id: allAppsTile
     visible: root.full && !root.empty
-    x: icons.x + icons.width + root.gap
+    x: icons.x + icons.width + root.cardGap + root.platePad * 2
     y: icons.y
     width: root.cell
     height: root.cell + (root.names === "always" ? Tk.px(24) : 0)
@@ -395,17 +455,12 @@ Item {
     }
   }
 
+  // The space between the two cards: no line, the cards' rims do the split.
   Component {
-    id: divider
+    id: gapSpacer
     Item {
-      implicitWidth: root.vertical ? root.cell : Tk.px(1) + root.gap
-      implicitHeight: root.vertical ? Tk.px(1) + root.gap : (root.names === "always" ? root.cell + (root.full ? Tk.px(24) : Tk.px(18)) : root.cell)
-      Rectangle {
-        anchors.centerIn: parent
-        width: root.vertical ? root.cell * 0.6 : 1
-        height: root.vertical ? 1 : root.cell * 0.6
-        color: Colours.m3outlineVariant
-      }
+      implicitWidth: root.vertical ? root.cell : root.sectionSpace
+      implicitHeight: root.vertical ? root.sectionSpace : (root.names === "always" ? root.cell + (root.full ? Tk.px(24) : Tk.px(18)) : root.cell)
     }
   }
 
