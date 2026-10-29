@@ -372,6 +372,7 @@ var subpages = {
       { type: "toggle", key: "utilities.toasts.audioOutputChanged", label: "Audio output changes", subtext: "The device sound now plays on" },
       { type: "toggle", key: "utilities.toasts.audioInputChanged", label: "Audio input changes", subtext: "The microphone now in use" },
       { type: "toggle", key: "utilities.toasts.nowPlaying", label: "Now playing", subtext: "The track each time it changes" },
+      { type: "toggle", key: "utilities.toasts.keepAwakeEnded", label: "Keep awake timer ended", subtext: "When keep awake set from the utilities card for 15, 30 or 60 minutes runs out" },
       { type: "section", text: "Notifications" },
       { type: "toggle", key: "notifs.openExpanded", label: "Open expanded", subtext: "Show notification groups and popups expanded by default" },
       { type: "stepper", key: "notifs.groupPreviewNum", label: "Group preview count", subtext: "Notifications shown per group before collapsing", from: 1, to: 10, step: 1 }

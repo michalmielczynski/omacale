@@ -799,6 +799,10 @@ Item {
     OsdService.claim(true)
     // Likewise the notification clone's toast window (NotifService.claimPopups()).
     NotifService.claimPopups(true)
+    // A keep awake set for a time has to run out even when the utilities
+    // card is never opened, so the service starts with the bar
+    // (services/IdleService.qml is otherwise lazy).
+    IdleService.alive
   }
   Component.onDestruction: {
     OsdService.claim(false)

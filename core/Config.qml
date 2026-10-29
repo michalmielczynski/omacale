@@ -332,6 +332,8 @@ QtObject {
           property bool audioOutputChanged: true
           property bool audioInputChanged: true
           property bool nowPlaying: false
+          // melon: keep awake set for a time running out (services/IdleService).
+          property bool keepAwakeEnded: true
         }
         property JsonObject toggles: JsonObject {
           property bool wifi: true
