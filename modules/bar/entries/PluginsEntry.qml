@@ -228,6 +228,27 @@ Item {
       if (it && typeof it.hoverAt === "function") it.hoverAt(it.alongInPill, over ? p : -1, over)
     }
   }
+  // A widget's card that is open under the pointer. Without this, ScreenScope
+  // clears `popout` the moment the pointer is on the icon's own cell (no entry
+  // claimed it) and the hover-opened card would flash and vanish; with it, the
+  // pointer can stay on the icon, and a status icon further down the bar takes
+  // the popout over as usual.
+  function popoutAt(a) {
+    if (!pill.visible) return null
+    const p = bar.pointAlong(bar.pointOn(pill, a))
+    if (p < 0 || p > bar.alen(pill)) return null
+    for (var i = 0; i < pluginRep.count; i++) {
+      const it = pluginRep.itemAt(i)
+      if (!it || !it.activeItem || !it.activeItem.opened || !it.activeItem.popout) continue
+      // The slots live in the pill's flickable content, so map, don't read y.
+      const c = it.mapToItem(pill, it.width / 2, it.height / 2)
+      const at = bar.vertical ? c.y : c.x
+      const len = bar.vertical ? it.height : it.width
+      if (p >= at - len / 2 - 3 && p <= at + len / 2 + 3)
+        return { name: it.activeItem.popout, center: bar.popoutCenterFor(it.activeItem.popout) }
+    }
+    return null
+  }
   // The overflow opens while the bar focus cursor is in the pill.
   function cursorMoved(s) {
     if (!!s && s.group === pill) { collapsePluginsTimer.stop(); if (pill.overflowCount > 0) pill.expanded = true }

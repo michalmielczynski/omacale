@@ -122,6 +122,18 @@ Item {
     if (hosted && typeof hosted.hoverAt === "function") hosted.hoverAt(0, along, onBar)
   }
 
+  // A card this widget has open, under the pointer: keeps the card up while
+  // the pointer rests on its icon (ScreenScope clears `popout` when the item
+  // under it has none) and lets the next bar item take the popout over.
+  function popoutAt(a) {
+    if (!shown) return null
+    const p = bar.pointAlong(bar.pointOn(singlePluginEntry, a))
+    if (p < 0 || p > bar.alen(singlePluginEntry)) return null
+    const it = slotLoader.item
+    if (!it || !it.activeItem || !it.activeItem.opened || !it.activeItem.popout) return null
+    return { name: it.activeItem.popout, center: bar.popoutCenterFor(it.activeItem.popout) }
+  }
+
   function navStops() {
     const s = slot
     return s && s.shown && s.activeItem ? [{ item: s, kind: "plugin", act: () => bar.openPlugin(s) }] : []

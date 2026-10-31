@@ -680,7 +680,12 @@ Item {
   function openHostCard() {
     if (!hostBringsPopout || !activeItem || !activeItem.popout) return
     const s = hostCardScope()
-    if (s) s.openPopoutKeys(activeItem.popout)
+    if (!s) return
+    // The pointer opened it: raise a pointer popout (no key hold), so moving
+    // off the icon closes it and moving on to another bar item opens that
+    // item's popout. A keyboard path (bar focus, panel hotkey) keeps the keys.
+    if (root.hoverHeld) s.openPopoutHover(activeItem.popout)
+    else s.openPopoutKeys(activeItem.popout)
   }
   function closeHostCard() {
     const name = activeItem && activeItem.popout ? activeItem.popout : ""

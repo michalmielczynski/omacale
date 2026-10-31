@@ -352,7 +352,18 @@ Scope {
       // no hover of its own: nothing would close it once the pointer leaves the
       // bar and the card, so let go of it here.
       releaseHostPopout()
-    } else if (popoutWas === "") morphChanged("popout", true)
+    } else {
+      // A hosted widget's card (melon.rekuperacja, melon.lights) that the
+      // pointer has moved off for another popout has to give its owner up:
+      // there is one Bar.activePopout, and a closed card whose widget still
+      // says it is open would swallow the next hover of its icon and keep the
+      // old owner's claim. ``The owner's own name'' tells the two directions
+      // apart: switching to the card just opened must not close it, switching
+      // away from the card's name must.
+      const owner = host && host.activePopout ? host.activePopout : null
+      if (owner && owner.popout !== popout) releaseHostPopout()
+      if (popoutWas === "") morphChanged("popout", true)
+    }
     popoutWas = popout
   }
 
@@ -373,6 +384,17 @@ Scope {
     popout = name
     if (!cfg.bar.persistent) barHover = true
     win.primeFocus()
+  }
+  // A hosted widget's card raised by the pointer: no key hold, so it closes
+  // with the pointer (like every status popout) and hovering another item on
+  // the bar switches to its popout instead of being ignored (popoutHeld).
+  function openPopoutHover(name) {
+    if (barOff) return
+    if (session) session = false
+    popoutCenter = bar.popoutCenterFor(name)
+    popoutKeys = false
+    popout = name
+    if (!cfg.bar.persistent) barHover = true
   }
   // The status group's popouts that have an icon on the bar, in bar order.
   function statusPopouts() { return bar.statusPopouts() }
