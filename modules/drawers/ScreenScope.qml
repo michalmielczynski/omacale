@@ -499,14 +499,15 @@ Scope {
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
       }
-      // A focus change while the hover-opened dock is out means the pointer
-      // went to (or the keyboard picked) a window: put the dock away.
-      if ((e.name === "activewindow" || e.name === "activewindowv2")
-          && scope.cfg.dock.visibility !== "always" && scope.dockPin === 0
-          && scope.dockHover && !scope.dockMenu && !scope.dockDismissPending) {
-        scope.dockDismissPending = true
-        dockDismissDelay.restart()
-      }
+      // A focus change does NOT put the hover-opened dock away. It used to,
+      // on the reading that focus moving means the pointer went to a window --
+      // but Omarchy sets `misc:focus_on_activate = true` (looknfeel.lua), so a
+      // terminal running a script, a browser opening a tab, any app that asks
+      // for activation, moves focus on its own while the pointer sits on the
+      // dock. The dock then collapsed under the pointer, and re-opening it
+      // meant moving off the edge and back. The pointer is the only thing that
+      // opens it, so the pointer (the 120 ms cursor poll) is the only thing
+      // that closes it.
     }
   }
   onHasFullscreenChanged: {
@@ -1537,7 +1538,10 @@ Scope {
       }
       Timer {
         id: dockHide
-        interval: Math.max(0, scope.cfg.dock.hideDelay)
+        // 0 still means "as soon as the pointer leaves", but the timer has to
+        // outlive one round of the cursor poll below (120 ms): a single stale
+        // reading of where the pointer is must not close a dock it is on.
+        interval: Math.max(200, scope.cfg.dock.hideDelay)
         onTriggered: {
           // A menu left behind by a pointer that has gone closes with the
           // dock; a menu still under the pointer is kept by the poll below.
@@ -1571,11 +1575,16 @@ Scope {
             const gx = Number(p[0]), gy = Number(p[1])
             if (!isFinite(gx) || !isFinite(gy)) return
             const x = gx - scope.screen.x, y = gy - scope.screen.y
-            const onIt = interactions.onDock(x, y)
-              || (interactions.dockAlong(x, y) && interactions.dockDepth(x, y) <= Math.max(Tk.border, 2)
-                  && !(scope.dockEdge === "bottom" && interactions.inBottomUtil(x, y)))
+            const atEdge = interactions.dockAlong(x, y) && interactions.dockDepth(x, y) <= Math.max(Tk.border, 2)
+              && !(scope.dockEdge === "bottom" && interactions.inBottomUtil(x, y))
+            const onIt = interactions.onDock(x, y) || atEdge
             if (scope.dockDismissed) {
-              if (!onIt) { scope.dockDismissed = false; scope.dockHover = false }
+              // Cleared off the dock and on the edge strip too: once the dock
+              // has gone there is no rect left to be "on", so a dismissal that
+              // caught the pointer on the strip (the strip is what opens the
+              // dock) could never be undone and the dock refused every attempt
+              // until the pointer left it. The strip is the way back in.
+              if (atEdge || !onIt) { scope.dockDismissed = false; scope.dockHover = false }
               return
             }
             if (onIt) {
@@ -1978,8 +1987,18 @@ Scope {
             scope.dockDismissed = scope.cfg.dock.visibility !== "always"
           }
           onHoverChanged: hovered => {
-            if (hovered) { scope.dockHover = true; dockHide.stop() }
-            else if (!scope.dockMenu) dockHide.restart()
+            if (hovered) { scope.dockHover = true; dockHide.stop(); return }
+            // Going from one cell to the next the pointer leaves the first
+            // (hoveredKey "") before it lands on the second, and with a hide
+            // delay of 0 that single-event gap closed the dock under the
+            // pointer. Ask again next event loop turn: by then the cell it is
+            // really on has reported itself.
+            Qt.callLater(() => {
+              if (scope.dockMenu || scope.dockDismissPending) return
+              const it = scope.dockLoaderItem
+              if (it && (it.pointerOn || it.hoveredKey !== "")) return
+              dockHide.restart()
+            })
           }
           onMenuChanged: open => {
             scope.dockMenu = open

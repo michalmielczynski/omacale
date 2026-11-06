@@ -52,7 +52,7 @@ Omacale is a single Omarchy bar plugin (`omacale.bar`). It runs inside Omarchy's
 
 The dock is not another panel on top of Omacale: it is a drawer of the same frame, with the same `blob.frag` glass, corner fill, Morph/Liquid motion and theme tokens as the dashboard and utilities. It takes the bottom edge (or the top one when the bar is at the bottom) and is blocked by the launcher, Settings, the overview and fullscreen.
 
-- **Open**: hover the dock's edge; it closes after **Settings › Panels › Dock › Hide delay** (default 400 ms) once the pointer leaves. It also closes on focus changes and after an app is activated.
+- **Open**: hover the dock's edge; it closes after **Settings › Panels › Dock › Hide delay** (default 400 ms) once the pointer leaves. A focus change does not close it: Omarchy sets `misc:focus_on_activate = true`, so a terminal running a script can move focus on its own while the pointer rests on the dock. It closes after an app is activated.
 - **Size**: **Compact** is the icon pill; **Full** is the wide drawer with room for names and an `All apps` tile. Both live in Settings › Panels › Dock › Size.
 - **Names**: **Off** (default; clean icons), **On hover** (a name only under the pointer) or **Always** (under every icon). Compact keeps the hover pill.
 - **Content**: pinned apps, then running apps, each on its own glass card — the gap between the cards is the split, so there is no divider line — and the launcher tile on a card of its own. Each pinned app owns the windows launched from it, including TUI windows in a pinned terminal. Window dots show active and open windows; right-click gives Pin/Unpin, New window, Move windows here and Close; pins can be dragged to reorder.
