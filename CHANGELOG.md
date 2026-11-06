@@ -2,6 +2,11 @@
 
 What changed in each version of Omacale, newest first. Versions are the ones in `manifest.json`. Each version bump adds its own entry in the same commit.
 
+## 0.55.2 - 2026-11-06
+
+### Fixed
+- **lock**: Omacale's lock screen is handed over again on Omarchy 4.5 (4.5.0-3). Its new lock service is verified, so after that update Omacale's clone is rebuilt with Omacale's view instead of the lock being handed back to Omarchy; the wrapper needed no change, as the `LockView` contract is the same. The fallback is remembered per Omacale version, so this version bump is also what re-arms the watchdog and the automatic reinstall on a machine that had already fallen back
+
 ## 0.55.1 - 2026-10-22
 
 ### Fixed
