@@ -1,5 +1,8 @@
 __pycache__/
 
+# robocze logi, zrzuty i rozpakowane paczki z testów ręcznych (lock-handover itd.)
+.scratch/
+
 # kopie robocze patchy z ~/.config/omacale/patches
 *.qml.bak.*
 .js.bak.*
