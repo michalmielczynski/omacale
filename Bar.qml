@@ -48,7 +48,7 @@ Item {
   readonly property bool capsLock: Sys.capsLock
   readonly property bool numLock: Sys.numLock
 
-  readonly property string version: manifest && manifest.version ? manifest.version : "0.55.2"
+  readonly property string version: manifest && manifest.version ? manifest.version : "0.56.2"
 
   signal toggleRequested(string name, string screenName, string arg)
 
@@ -77,6 +77,9 @@ Item {
   // Uses the registry metadata's firstParty flag instead of a hardcoded
   // exclusion list — the shell sets firstParty=true for every stock plugin
   // under /usr/share/omarchy/shell/plugins/.
+  // The sections of Omarchy's bar layout, in bar order. Omarchy splits the
+  // centre around its box (centerBegin | center | centerEnd).
+  readonly property var layoutSections: ["left", "centerBegin", "center", "centerEnd", "right"]
   readonly property var collectedPlugins: {
     if (!barConfig || !barConfig.layout) return []
     var reg = barWidgetRegistry
@@ -86,7 +89,7 @@ Item {
     var layout = barConfig.layout
     var collected = []
     var seen = {}
-    var sections = ["left", "center", "right"]
+    var sections = root.layoutSections
     for (var s = 0; s < sections.length; s++) {
       var list = Array.isArray(layout[sections[s]]) ? layout[sections[s]] : []
       for (var i = 0; i < list.length; i++) {
@@ -122,7 +125,7 @@ Item {
   // custom bar is shown of the plugin registry.
   readonly property var omarchyLayoutIds: {
     var layout = barConfig && barConfig.layout ? barConfig.layout : {}
-    return ["left", "center", "right"].reduce((out, s) =>
+    return root.layoutSections.reduce((out, s) =>
       out.concat((Array.isArray(layout[s]) ? layout[s] : []).map(e => root.entryId(e))), [])
   }
   readonly property var registryWidgets: {
@@ -148,7 +151,7 @@ Item {
   function widgetEntry(id) {
     if (!id || widgetIds.indexOf(id) < 0) return null
     var layout = barConfig && barConfig.layout ? barConfig.layout : {}
-    var sections = ["left", "center", "right"]
+    var sections = root.layoutSections
     for (var s = 0; s < sections.length; s++) {
       var list = Array.isArray(layout[sections[s]]) ? layout[sections[s]] : []
       for (var i = 0; i < list.length; i++)
@@ -289,19 +292,6 @@ Item {
   function scopeFor(screenName) {
     for (const s of scopes) if (s.screen && s.screen.name === screenName) return s
     return scopes.length ? scopes[0] : null
-  }
-
-  // A hosted widget that names its popout ("plugin") and brings the content
-  // (popoutContent) gets Omacale's own popout surface: the same card, glass and
-  // animation as the status popouts, instead of a window of its own.
-  function openPluginPopout(owner) {
-    if (!owner || !owner.popout) return
-    const s = scopeFor(slotScreen(owner) || barScreen())
-    if (s) s.openPopoutKeys(owner.popout)
-  }
-  function closePluginPopout(owner) {
-    const name = owner && owner.popout ? owner.popout : ""
-    for (const s of scopes) if (name === "" || s.popout === name) s.popout = ""
   }
 
   // Omarchy id -> the Omacale popout for it. Not mapped, so their hotkeys do
@@ -485,16 +475,6 @@ Item {
     if (activePopout === owner) activePopout = null
   }
 
-  // Let go of a popout that is no longer shown. ScreenScope calls this when it
-  // closes `popout` (pointer off the bar and off the card); it reaches only the
-  // owner's close(), never toggle, so a widget already closed does nothing.
-  function releaseActivePopout() {
-    var owner = activePopout
-    if (!owner) return
-    activePopout = null
-    if (typeof owner.close === "function") owner.close()
-  }
-
   // Tooltip tracking
   property var tooltipTarget: null
   property var pendingTooltipTarget: null
@@ -613,7 +593,6 @@ Item {
     function sidebar(): void { root.toggle("sidebar") }
     function utilities(): void { root.toggle("utilities") }
     function overview(): void { root.toggle("overview") }
-    function dock(): void { root.toggle("dock") }
     function toggles(): void { root.toggle("utilities") }
     // The active window's details and actions (Caelestia's window info).
     function windowInfo(): void { root.toggle("windowInfo") }
@@ -799,10 +778,6 @@ Item {
     OsdService.claim(true)
     // Likewise the notification clone's toast window (NotifService.claimPopups()).
     NotifService.claimPopups(true)
-    // A keep awake set for a time has to run out even when the utilities
-    // card is never opened, so the service starts with the bar
-    // (services/IdleService.qml is otherwise lazy).
-    IdleService.alive
   }
   Component.onDestruction: {
     OsdService.claim(false)
