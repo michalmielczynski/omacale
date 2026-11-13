@@ -489,13 +489,32 @@ Scope {
   // for a maximized window (SUPER+ALT+F, "Full width"): that one leaves our
   // top-layer surface and the reserved edges alone, so the frame stays.
   readonly property bool hasFullscreen: {
-    const ws = monitor ? monitor.activeWorkspace : null
-    return !!(ws && ws.toplevels.values.some(t => t.lastIpcObject && t.lastIpcObject.fullscreen > 1))
+    const spaces = []
+    if (monitor && monitor.activeWorkspace) spaces.push(monitor.activeWorkspace)
+    // A special workspace is not the monitor's `activeWorkspace`: Hyprland
+    // leaves that on the normal workspace and reports the special one in its
+    // own field. Omarchy's screensaver opens fullscreen on
+    // `special:screensaver-<monitor>`, so it never reached the check above and
+    // the frame and the bar stayed drawn over it. Same idiom as
+    // bar/workspaces/SpecialWorkspaces.qml: matching the id, not the name, so
+    // a renamed special workspace still counts.
+    const special = monitor && monitor.lastIpcObject ? monitor.lastIpcObject.specialWorkspace : null
+    if (special) {
+      const sw = Hyprland.workspaces.values.find(w => w && w.id === special.id)
+      if (sw) spaces.push(sw)
+    }
+    return spaces.some(s => s && s.toplevels.values.some(t => t.lastIpcObject && t.lastIpcObject.fullscreen > 1))
   }
   Connections {
     target: Hyprland
     function onRawEvent(e) {
-      if (e.name === "fullscreen" || e.name === "workspace" || e.name === "closewindow") {
+      // `openwindow` and the workspace lifecycle joined `fullscreen` here: a
+      // window that maps already fullscreen (the screensaver) emits no
+      // separate `fullscreen` event, and the special workspace it maps on is
+      // new, so without these the refresh -- and with it the check above --
+      // only happened after the next real fullscreen toggle.
+      if (e.name === "fullscreen" || e.name === "workspace" || e.name === "openwindow"
+          || e.name === "createworkspace" || e.name === "destroyworkspace" || e.name === "closewindow") {
         Hyprland.refreshWorkspaces()
         Hyprland.refreshToplevels()
       }
