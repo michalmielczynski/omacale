@@ -48,7 +48,7 @@ Item {
   readonly property bool capsLock: Sys.capsLock
   readonly property bool numLock: Sys.numLock
 
-  readonly property string version: manifest && manifest.version ? manifest.version : "0.56.2"
+  readonly property string version: manifest && manifest.version ? manifest.version : "0.59.1"
 
   signal toggleRequested(string name, string screenName, string arg)
 
@@ -444,9 +444,25 @@ Item {
     if (!sourceDir) {
       sourceDir = Quickshell.env("HOME") + "/.config/omarchy/plugins/" + key
     }
-    var serviceUrl = "file://" + sourceDir + "/Service.qml"
-    var comp = Qt.createComponent(serviceUrl)
-    if (comp.status === Component.Ready) {
+    // The manifest says where the service is (`entryPoints.service`, which
+    // need not be the plugin's root); Omarchy's shell resolves it the same
+    // way (ensureService). The registry metadata doesn't carry it, so ask the
+    // plugin registry, then try the usual places.
+    var urls = []
+    var installed = registry && registry.installedPlugins ? registry.installedPlugins[key] : null
+    if (installed && installed.entryPoints && installed.entryPoints.service
+        && typeof registry.entryPointUrl === "function") {
+      var u = String(registry.entryPointUrl(installed, "service") || "")
+      if (u) urls.push(u)
+    }
+    urls.push("file://" + sourceDir + "/Service.qml")
+    urls.push("file://" + sourceDir + "/integration/Service.qml")
+    for (var i = 0; i < urls.length; i++) {
+      var comp = Qt.createComponent(urls[i])
+      if (comp.status !== Component.Ready) {
+        if (i === urls.length - 1) console.warn("omacale: failed to create hosted service for", key, comp.errorString())
+        continue
+      }
       var inst = comp.createObject(root, {
         shell: root.shell,
         manifest: meta
@@ -455,8 +471,6 @@ Item {
         serviceStore.instances[key] = inst
         return inst
       }
-    } else if (comp.status === Component.Error) {
-      console.warn("omacale: failed to create hosted service for", key, comp.errorString())
     }
     return null
   }
@@ -540,6 +554,8 @@ Item {
   // Bundled fonts (Caelestia's Google Sans Flex and Rubik).
   FontLoader { source: Qt.resolvedUrl("assets/fonts/GoogleSansFlex.ttf") }
   FontLoader { source: Qt.resolvedUrl("assets/fonts/Rubik.ttf") }
+  // The icon font is a system package; say so when it is missing (#38).
+  IconFontCheck {}
 
   Variants {
     model: Quickshell.screens
@@ -590,6 +606,10 @@ Item {
     function settings(): void { root.toggle("settings") }
     // Open settings on one page, e.g. "network" or "bluetooth".
     function settingsPage(page: string): void { root.toggle("settings", page) }
+    function taskbarAppsStatus(): string {
+      return JSON.stringify({ enabled: Config.o.bar.apps.enabled, items: TaskbarApps.items.length, pinned: TaskbarApps.pins.length,
+        screens: root.scopes.map(s => s.taskbarAppsState()) })
+    }
     function sidebar(): void { root.toggle("sidebar") }
     function utilities(): void { root.toggle("utilities") }
     function overview(): void { root.toggle("overview") }

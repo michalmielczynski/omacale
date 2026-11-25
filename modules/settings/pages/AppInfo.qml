@@ -84,6 +84,17 @@ ColumnLayout {
     onToggled: c => root.setIn("dock.pinned", c)
   }
 
+  SectionHeader { row: ({ text: "Taskbar" }) }
+  RowToggle {
+    Layout.fillWidth: true
+    first: true
+    last: true
+    text: "Pin in the taskbar"
+    subtext: "Shown when Taskbar › Apps is enabled"
+    checked: !!root.app && TaskbarApps.isPinned(root.app.id)
+    onToggled: c => { if (root.app) TaskbarApps.pin(root.app.id, c) }
+  }
+
   SectionHeader { row: ({ text: "Details" }) }
   Repeater {
     id: details

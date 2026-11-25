@@ -2,6 +2,48 @@
 
 What changed in each version of Omacale, newest first. Versions are the ones in `manifest.json`. Each version bump adds its own entry in the same commit.
 
+## 0.59.1 - 2026-11-25
+
+### Fixed
+- **lock screen**: Omacale's lock screen is back on current Omarchy dev, whose lock service changed (password checks settle once; the screen turns off after a quiet spell even when a bound key like volume lit it). The new screen-off also follows Settings › Lock screen › Screen off, so "never" still never blanks
+- **recording indicator**: shows while Omarchy records with `wf-recorder`, its fallback where `gpu-screen-recorder` can't run (Apple Silicon) (#40)
+- **icons**: when the Material Symbols Rounded icon font is missing (a marketplace install never runs the installer that adds it), a notification says so and offers to install it, or to restart the shell if it was installed after the shell started. "Material Icons" is a different font (#38)
+
+## 0.59.0 - 2026-11-13
+
+### Added
+- **lock screen**: optional session buttons (Settings › Lock screen › Session buttons, off by default). Hovering the resources card swaps CPU, memory and disk for logout, shutdown, sleep and reboot, using the session drawer's icons and commands. They work without the password, which is why they're off unless you turn them on. Ported from Caelestia (#1644)
+
+## 0.58.0 - 2026-11-07
+
+### Added
+- **installer**: `omacale switch` toggles between Omacale and the bar it replaced, without uninstalling (`switch omarchy` / `switch omacale` to pick one). Omarchy's shell.json edits and Omacale's settings both stay, across reboots. The toasts, OSD and lock screen go back to Omarchy while you're away and return when you switch back (#36)
+
+## 0.57.1 - 2026-11-07
+
+### Fixed
+- **bar plugins**: a hosted plugin whose background service isn't at its folder's root (its manifest's `entryPoints.service` points elsewhere) now starts on Omacale's bar, instead of failing with "failed to create hosted service"
+
+## 0.57.0 - 2026-11-07
+
+### Added
+- **taskbar apps** (opt-in, Settings › Taskbar › Apps): pin apps, named app groups and folders in the bar, on any edge. Running apps you haven't pinned can show after a divider; click to open, focus or cycle windows, middle-click for a new window. A right-click menu (or Menu / Shift+F10 in bar focus) offers New window, Pin/Unpin, Close all windows and Quit application. Drag to reorder pins, or drag a running app in to pin it. Apps can also be pinned from Settings › Apps › App info, and launcher favourites imported once. Contributed by @mtolhuys (#37)
+- **file picker**: can pick a folder, with a File system place in its sidebar; Enter on a folder opens it
+
+### Fixed
+- **taskbar apps**: Open on a group's menu puts the group's popout beside its icon rather than in the middle of the Apps strip
+
+## 0.56.4 - 2026-11-03
+
+### Fixed
+- **bar**: hovering Omarchy's indicators widget now opens and closes it smoothly. The pill grows and shrinks on Caelestia's spatial curve instead of jumping, the active indicator stays put, and on leaving the inactive ones are clipped away as the pill shrinks instead of vanishing before it snaps shut
+
+## 0.56.3 - 2026-11-03
+
+### Fixed
+- **lock screen**: the Omacale lock works again on the newest Omarchy dev (its lock service changed and was handed back to Omarchy's own screen); the screen-off delay still applies, and after a resume it never blanks sooner than Omarchy's 15s
+- **lock screen**: after a suspend (a VT switch on NVIDIA) typing reaches the password field again without clicking it first
+
 ## 0.56.2 - 2026-11-01
 
 ### Fixed

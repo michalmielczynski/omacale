@@ -4,6 +4,10 @@ Anim 1.0 components/Anim.qml
 Bar 1.0 Bar.qml
 ButtonRow 1.0 components/controls/ButtonRow.qml
 BarContent 1.0 modules/bar/BarContent.qml
+AppsEntry 1.0 modules/bar/entries/AppsEntry.qml
+AppsGroup 1.0 modules/bar/AppsGroup.qml
+AppsMenu 1.0 modules/bar/AppsMenu.qml
+singleton TaskbarApps 1.0 services/TaskbarApps.qml
 BarWidgetSlot 1.0 modules/bar/BarWidgetSlot.qml
 PluginBarFacade 1.0 modules/bar/PluginBarFacade.qml
 CAnim 1.0 components/CAnim.qml
@@ -34,6 +38,7 @@ DockItem 1.0 modules/dock/DockItem.qml
 DockPreview 1.0 modules/dock/DockPreview.qml
 singleton GameMode 1.0 services/GameMode.qml
 IconButton 1.0 components/controls/IconButton.qml
+IconFontCheck 1.0 services/IconFontCheck.qml
 IdleInhibitCard 1.0 modules/utilities/IdleInhibitCard.qml
 singleton HyprLook 1.0 services/HyprLook.qml
 singleton GlassBlur 1.0 services/GlassBlur.qml

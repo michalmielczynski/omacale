@@ -77,8 +77,12 @@ VERIFIED_SERVICES = {
     # Omarchy dev, 4.0.0.r7438 (717175d): no OWE feed, FingerprintModel.js
     "aea038809de0e44c76d444fabf9c75ef6d2b2002a40ac4333e3e2867135a2bb1",
     # Omarchy 4.5.0 (stable; hardened fingerprint flow, BackgroundMedia poster,
-    # the OWE lock feed surface dropped, same LockView contract)
+    # the OWE lock feed surface dropped, same LockView contract). Same file as
+    # Omarchy dev ae64a4be: armBlankTimer(delayMs), 15s run-up after resume.
     "cf9da581ab749194d44d5f7f73dc028704373f59dd6b131a90b9c07419fed7c9",
+    # Omarchy dev, 2f5ef897e: PAM settles once, lockIdleMonitor blanks after
+    # quiet input (bound keys never reach the lock surface)
+    "51707693351f7d9b5204d2ed5b75a88c7a1cbc7ce79b9c20cbe3767132e02b57",
 }
 
 HOME = os.path.expanduser("~")
@@ -330,26 +334,14 @@ def plan(target, template_qml):
 #
 # Omarchy blanks the locked screen after a fixed 5s (idleBlankTimer). Omacale
 # makes that a setting (lock.blankAfter in settings.json: seconds, 0 = never)
-# by patching the clone's copy of Service.qml. The patch is two exact string
-# replacements; if either anchor is missing (a changed upstream) the stock
-# service is used untouched, so the screen simply keeps blanking after 5s.
+# by patching the clone's copy of Service.qml. The patch is one exact string
+# replacement per upstream shape (BLANK_PATCHES); if no anchor matches (a
+# changed upstream) the stock service is used untouched, so the screen simply
+# keeps blanking after 5s.
 # The value is read live by a FileView in the patched service, so changing
 # the setting never rewrites the clone while a lock may be up.
 
-BLANK_ANCHOR_ARM = """  function armBlankTimer() {
-    idleBlankTimer.armedAt = Date.now()
-    idleBlankTimer.restart()
-  }
-"""
-BLANK_PATCH_ARM = """  function armBlankTimer() {
-    // omacale:blank-after
-    var ms = root.omacaleBlankMs
-    idleBlankTimer.armedAt = Date.now()
-    if (ms <= 0) { idleBlankTimer.stop(); return }
-    idleBlankTimer.interval = ms
-    idleBlankTimer.restart()
-  }
-
+BLANK_SETTING = """
   // omacale:blank-after -- lock.blankAfter (seconds, 0 = never) from Omacale's settings
   property int omacaleBlankMs: 5000
   FileView {
@@ -371,14 +363,80 @@ BLANK_PATCH_ARM = """  function armBlankTimer() {
   }
 """
 
+# (anchor, replacement) per upstream shape of armBlankTimer, newest first.
+BLANK_PATCHES = [
+    # dev r7530+: armBlankTimer(delayMs), a 15s run-up after a resume
+    # (idleBlankTimer.resumeMs). That run-up stays the floor, so a resume
+    # never blanks sooner than upstream wants; 0 still never blanks.
+    (
+        """  function armBlankTimer(delayMs) {
+    idleBlankTimer.interval = delayMs || idleBlankTimer.idleMs
+    idleBlankTimer.armedAt = Date.now()
+    idleBlankTimer.restart()
+  }
+""",
+        """  function armBlankTimer(delayMs) {
+    // omacale:blank-after
+    var ms = root.omacaleBlankMs
+    idleBlankTimer.armedAt = Date.now()
+    if (ms <= 0) { idleBlankTimer.stop(); return }
+    idleBlankTimer.interval = Math.max(ms, delayMs || 0)
+    idleBlankTimer.restart()
+  }
+""" + BLANK_SETTING,
+    ),
+    # stable 4.0.x and dev up to r7464: armBlankTimer(), a fixed 5s
+    (
+        """  function armBlankTimer() {
+    idleBlankTimer.armedAt = Date.now()
+    idleBlankTimer.restart()
+  }
+""",
+        """  function armBlankTimer() {
+    // omacale:blank-after
+    var ms = root.omacaleBlankMs
+    idleBlankTimer.armedAt = Date.now()
+    if (ms <= 0) { idleBlankTimer.stop(); return }
+    idleBlankTimer.interval = ms
+    idleBlankTimer.restart()
+  }
+""" + BLANK_SETTING,
+    ),
+]
+
+
+# Newer Omarchy also blanks from an IdleMonitor once input has been quiet for
+# idleMs with no countdown pending (a bound key such as volume lights the
+# panel without reaching the lock surface). Left alone it would blank after 5s
+# even with lock.blankAfter 0, so it follows the same setting: off at 0,
+# otherwise never sooner than the setting.
+IDLE_ANCHOR = """    id: lockIdleMonitor
+    enabled: root.lockRequested
+    timeout: idleBlankTimer.idleMs / 1000
+"""
+IDLE_PATCH = """    id: lockIdleMonitor
+    // omacale:blank-idle
+    enabled: root.lockRequested && root.omacaleBlankMs > 0
+    timeout: Math.max(1, Math.ceil(root.omacaleBlankMs / 1000))
+"""
+
 
 def patch_blank(service_bytes):
-    """Service.qml with the configurable blank delay, or unchanged if the
-    anchor is not there."""
+    """Service.qml with the configurable blank delay, or unchanged if no
+    anchor is there (or a lockIdleMonitor is there in a shape we don't know,
+    since it would blank behind the setting's back)."""
     text = service_bytes.decode()
-    if BLANK_ANCHOR_ARM not in text or text.count(BLANK_ANCHOR_ARM) != 1:
+    for anchor, patch in BLANK_PATCHES:
+        if text.count(anchor) == 1:
+            out = text.replace(anchor, patch)
+            break
+    else:
         return service_bytes
-    return text.replace(BLANK_ANCHOR_ARM, BLANK_PATCH_ARM).encode()
+    if out.count(IDLE_ANCHOR) == 1:
+        out = out.replace(IDLE_ANCHOR, IDLE_PATCH)
+    elif "lockIdleMonitor" in out:
+        return service_bytes
+    return out.encode()
 
 
 def stale_files(target):

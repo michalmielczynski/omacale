@@ -34,6 +34,7 @@ var values = {
     power: true,
     workspaces: { shown: 5, display: "shapes", activeIndicator: true, activeTrail: true, occupiedBg: false, showWindows: true, maxWindowIcons: 5, specialDisplay: "icons", specialShowWindows: true },
     activeWindow: { enabled: true, compact: false },
+    apps: { enabled: false, showRunning: true, useAvailableSpace: true, showSettings: false, maxShown: 8, items: [] },
     tray: { enabled: true, background: false, recolour: false, compact: false, hiddenIcons: [] },
     plugins: { enabled: true, compact: false, unpinned: [], hidden: [], bare: [], scale: [] },
     // Settings › Taskbar › Layout. Empty lists mean the default order (BarLayout.js).
@@ -75,6 +76,10 @@ var values = {
     // Private by default: notification contents hidden, the wallpaper (not a
     // copy of the screen) behind the card, and no "show password" button.
     hideNotifs: true, recolourLogo: true, blur: true, useWallpaper: true, revealPassword: false,
+    // Caelestia lock.enableSessionControls: hovering the resources card swaps
+    // it for logout, shutdown, sleep and reboot, which work without the
+    // password, so off by default as upstream.
+    sessionControls: false,
     // Seconds after the lock before the screen goes black; 0 never blanks it.
     // Read live by the patched lock service (scripts/lock-screen).
     blankAfter: 5,
