@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
-import Quickshell
 import "../.."
 
 // Caelestia modules/background/DesktopClock.qml: hours : minutes, a divider,
@@ -27,9 +26,11 @@ Item {
   implicitWidth: layout.implicitWidth + (Tk.padding.large * 4 * clockScale)
   implicitHeight: layout.implicitHeight + (Tk.padding.extraLargeIncreased * clockScale)
 
-  SystemClock {
+  // WallClock, not Quickshell's SystemClock: a resume must not leave the
+  // pre-suspend time up (see WallClock.qml).
+  WallClock {
     id: clock
-    precision: SystemClock.Minutes
+    step: 60000
   }
 
   component ClockText: MText {

@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import "../../.."
 
 // Caelestia bar/components/Clock.qml (and Caelestia KDE's row form). The
-// SystemClock lives in BarContent (bar.sysClock), shared by every screen's entry.
+// clock lives in BarContent (bar.sysClock), shared by every screen's entry.
 Rectangle {
   id: entry
   required property var bar

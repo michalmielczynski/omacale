@@ -97,6 +97,7 @@ singleton IconFiles 1.0 services/IconFiles.qml
 singleton Tk 1.0 core/Tk.qml
 Toggle 1.0 components/controls/Toggle.qml
 Utilities 1.0 modules/utilities/Utilities.qml
+WallClock 1.0 components/WallClock.qml
 WavyLine 1.0 components/shapes/WavyLine.qml
 WeatherTab 1.0 modules/dashboard/WeatherTab.qml
 Workspaces 1.0 modules/bar/workspaces/Workspaces.qml

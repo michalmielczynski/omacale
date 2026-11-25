@@ -66,7 +66,9 @@ Item {
   Component.onDestruction: if (active) Sys.resourcesWanted -= 1
 
   readonly property var player: Sys.player
-  SystemClock { id: clock; precision: SystemClock.Seconds }
+  // WallClock, not Quickshell's SystemClock: a resume must not leave the
+  // pre-suspend time (and calendar month) up (see WallClock.qml).
+  WallClock { id: clock; step: 1000 }
 
   // --------------------------------------------------------------- tabs
   Item {

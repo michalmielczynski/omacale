@@ -24,9 +24,12 @@ ColumnLayout {
 
   spacing: Tk.spacing.largeIncreased
 
-  SystemClock {
+  // WallClock, not Quickshell's SystemClock: the lock is on screen right
+  // after a resume, when a SystemClock still shows the pre-suspend time
+  // (see WallClock.qml).
+  WallClock {
     id: sysClock
-    precision: SystemClock.Minutes
+    step: 60000
   }
 
   // ---------------------------------------------------------- the clock

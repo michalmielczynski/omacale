@@ -435,9 +435,11 @@ Item {
     else if (cfg.scroll.brightness) DisplayService.stepBrightness(screen.name, dy > 0 ? "+" + svc.brightnessStep + "%" : svc.brightnessStep + "%-")
   }
 
-  // Shared by the clock entry (ClockEntry reads bar.sysClock).
+  // Shared by the clock entry (ClockEntry reads bar.sysClock). WallClock, not
+  // Quickshell's SystemClock, which a resume leaves on the pre-suspend minute
+  // (see WallClock.qml).
   property alias sysClock: clock
-  SystemClock { id: clock; precision: root.cfg.clock.showSeconds ? SystemClock.Seconds : SystemClock.Minutes }
+  WallClock { id: clock; step: root.cfg.clock.showSeconds ? 1000 : 60000 }
   PwObjectTracker { objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource] }
 
   // ------------------------------------------------------- sections
