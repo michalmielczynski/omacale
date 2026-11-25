@@ -116,7 +116,7 @@ var values = {
   general: { clock24: true, weatherLocation: "", units: "metric" },
   // popups.enabled only takes effect once the notification daemon has handed
   // its own toasts over (scripts/notif-popups). autoFellBack: as lock's.
-  notifs: { screen: "all", groupPreviewNum: 3, openExpanded: false, popups: { enabled: true, width: 430 }, autoFellBack: false, fellBackVersion: "" },
+  notifs: { screen: "all", groupPreviewNum: 3, openExpanded: false, popups: { enabled: true, width: 430, sound: true, soundFile: "" }, autoFellBack: false, fellBackVersion: "" },
   // Caelestia services / dashboard polling. Steps are Omarchy's 5%, not
   // Caelestia's 10%, so the bar scrolls like Omarchy's volume keys.
   services: { mediaUpdateInterval: 500, resourceUpdateInterval: 1000, volumeStep: 5, brightnessStep: 5, visualiserBars: 60 },

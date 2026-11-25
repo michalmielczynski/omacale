@@ -417,6 +417,11 @@ QtObject {
         property JsonObject popups: JsonObject {
           property bool enabled: true
           property int width: 430
+          // A chime as a toast appears, and which of assets/sounds it plays:
+          // "" is the default one, otherwise a name ("glass", "pulse",
+          // "servo", "hal") or an absolute path.
+          property bool sound: true
+          property string soundFile: ""
         }
         property bool autoFellBack: false
         property string fellBackVersion: ""

@@ -367,6 +367,7 @@ var subpages = {
       { type: "nav", icon: "monitor", label: "Screens", subtext: "Which screens show the popups: in Display › Shell on each screen", page: "displayShell" },
       { type: "toggle", key: "notifs.popups.enabled", label: "Show popups", subtext: "Draw arriving notifications as Caelestia-style toasts, on top of everything including fullscreen windows. Off, Omarchy draws its own" },
       { type: "slider", key: "notifs.popups.width", label: "Popup width (at 100% scale)", icon: "notifications", from: 320, to: 600, step: 10, unit: "px" },
+      { type: "toggle", key: "notifs.popups.sound", label: "Chime on a new notification", subtext: "One short sound as a toast appears. Do Not Disturb silences it, since a silenced notification never becomes a toast. Settings › Notifications › Sound" },
       { type: "section", text: "Toasts" },
       { type: "stepper", key: "utilities.maxToasts", label: "Toasts shown", subtext: "Small toasts over the utilities corner; more wait their turn", from: 1, to: 10, step: 1 },
       { type: "toggle", key: "utilities.toasts.chargingChanged", label: "Charger changes", subtext: "When the charger is plugged in or out" },

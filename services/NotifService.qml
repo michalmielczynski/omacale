@@ -109,6 +109,31 @@ QtObject {
   function run(cmd) { Quickshell.execDetached(["bash", "-c", cmd]) }
   function exec(argv) { Quickshell.execDetached(argv) }
 
+  // A chime for a notification that actually appears. Omarchy's daemon plays
+  // no sound of its own, so it lives here, on the one path every toast takes
+  // through this bar. Do Not Disturb comes for free: a silenced notification
+  // never gets a popup file, so nothing arrives here to chime for. The player
+  // runs detached -- a toast must never wait for audio.
+  // Which file the chime plays. Our own sounds are generated
+  // (scripts/gen-notification-sound.py) and ship beside the plugin, so the
+  // chime needs nothing from freedesktop's 2010s set. `soundFile` may name one
+  // of them ("glass", "pulse", "servo", "hal") or be an absolute path.
+  function chimeFile() {
+    const asked = String(Config.get("notifs.popups.soundFile") || "")
+    const base = String(Qt.resolvedUrl("../assets/sounds/")).replace(/^file:\/\//, "")
+    if (asked === "") return base + "notification.wav"
+    if (asked.indexOf("/") < 0 && asked.indexOf(".") < 0) return base + "notification-" + asked + ".wav"
+    return asked
+  }
+
+  function popupChime() {
+    if (Config.get("notifs.popups.sound") === false) return
+    const now = Date.now()
+    if (now - chimeAt < 300) return
+    chimeAt = now
+    exec(["bash", "-c", 'command -v pw-play >/dev/null && exec pw-play --volume=0.7 "$0"; exec paplay --volume=46000 "$0"', chimeFile()])
+  }
+
   // The click action, as Omarchy's NotificationLogic.parseExecArgv reads it:
   // `execArgv` is a JSON argv array (omarchy-notification-send --exec), run
   // as argv with no shell. A malformed one (not an array of strings, an empty
@@ -176,6 +201,10 @@ QtObject {
   readonly property bool popupsOn: !!(Config.o.notifs && Config.o.notifs.popups && Config.o.notifs.popups.enabled)
   readonly property bool popupsEnabled: popupsSupported && popupsOn
   property var popups: []
+  // The chime's last ring, and whether the stack already had a first look: the
+  // batch a restarted watcher replays is not a card that just arrived.
+  property real chimeAt: 0
+  property bool popupsPrimed: false
 
   // The claim the patched daemon reads (about once a second): this shell
   // process, and whether "Show popups" is on. Bar.qml claims as it loads and
@@ -305,10 +334,12 @@ QtObject {
 
     const kept = []
     const live = {}
+    let arrived = false
     for (let i = 0; i < list.length; i++) {
       const n = list[i]
       live[n._key] = true
       if (dismissedKeys[n._key]) continue
+      if (!byKey[n._key]) arrived = true
       // Hand back the very object the toast is already bound to when nothing
       // it draws has changed, so ScriptModel keeps that delegate alive.
       const prev = byKey[n._key]
@@ -333,6 +364,11 @@ QtObject {
     if (expandedNext) expandedPopups = expandedNext
 
     if (!samePopups(popups, kept)) popups = kept
+    // Only a stack that really gained a card chimes: not the batch a restarted
+    // watcher replays, and not an update to a card already up (new text, or a
+    // deadline rewritten by a pause).
+    if (!popupsPrimed) popupsPrimed = true
+    else if (arrived) popupChime()
   }
 
   // The daemon deletes an expired popup's file, which is what really takes
@@ -483,7 +519,7 @@ QtObject {
   // far more than the watcher's own polling.
   property Process popupWatcher: Process {
     running: root.popupsEnabled
-    onRunningChanged: if (!running) root.popups = []
+    onRunningChanged: if (!running) { root.popups = []; root.popupsPrimed = false }
     command: ["python3", root.notifsScript, "watch"]
     stdout: SplitParser {
       onRead: line => {
